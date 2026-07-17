@@ -1,0 +1,25 @@
+[
+  {
+    "source": "manual",
+    "source_id": "example-1",
+    "title": "Example deterministic parser bug",
+    "source_url": "https://github.com/example/project/issues/123",
+    "issue_url": "https://github.com/example/project/issues/123",
+    "repository": "example/project",
+    "bounty_usd": 250,
+    "status": "open",
+    "deadline": "2030-01-01T00:00:00Z",
+    "language": "TypeScript",
+    "submission_count": 0,
+    "active_attempts": 0,
+    "public_repository": true,
+    "has_test_suite": true,
+    "acceptance_criteria_clear": true,
+    "reproducible": true,
+    "maintainer_active": true,
+    "competing_prs": 0,
+    "estimated_agent_hours": 1.5,
+    "estimated_human_hours": 0.2,
+    "estimated_execution_cost_usd": 5
+  }
+]

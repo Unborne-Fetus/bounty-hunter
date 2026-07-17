@@ -1,0 +1,22 @@
+# One public Algora organization handle per line.
+# Add organizations only after confirming they actively publish coding bounties.
+cal
+projectdiscovery
+BasedHardware
+Dokploy
+daytonaio
+spaceandtimelabs
+thesysdev
+getdozer
+revertinc
+comet-ml
+aqualinkorg
+coollabsio
+CapSoftware
+highlight
+flydelabs
+getkyo
+jozek.woloch
+archestra-ai
+tscircuit
+activepieces

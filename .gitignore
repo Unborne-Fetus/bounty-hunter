@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.env
+data/*
+!data/.gitkeep
+reports/*.json
+reports/*.md
+reports/isolation-validation-artifacts/
+reports/attempt-pipeline-validation-artifacts/
+!reports/.gitkeep

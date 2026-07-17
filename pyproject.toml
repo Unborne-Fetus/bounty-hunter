@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bounty-hunter"
+version = "0.1.0"
+description = "Supervised discovery and scoring for AI-agent coding bounties"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Bounty Hunter" }]
+dependencies = []
+
+[project.scripts]
+bounty-hunter = "bounty_hunter.cli:main"
+bounty-hunter-workflow = "bounty_hunter.workflow:main"
+bounty-hunter-preflight = "bounty_hunter.preflight:main"
+bounty-hunter-attempt = "bounty_hunter.attempt:main"
+bounty-hunter-submission = "bounty_hunter.submission:main"
+bounty-hunter-monitor = "bounty_hunter.monitor:main"
+bounty-hunter-algora-discovery = "bounty_hunter.algora_discovery:main"
+
+[tool.setuptools.packages.find]
+include = ["bounty_hunter*"]

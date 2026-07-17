@@ -1,0 +1,21 @@
+[Unit]
+Description=Supervised AI bounty opportunity monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Replace this path with the deployed checkout on the VPS.
+WorkingDirectory=/opt/bounty-hunter
+EnvironmentFile=-/etc/bounty-hunter.env
+ExecStart=/usr/bin/python3 -m bounty_hunter.monitor --interval-hours 6
+Restart=on-failure
+RestartSec=60
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/bounty-hunter/data /opt/bounty-hunter/reports
+
+[Install]
+WantedBy=multi-user.target
