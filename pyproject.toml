@@ -20,6 +20,7 @@ bounty-hunter-attempt = "bounty_hunter.attempt:main"
 bounty-hunter-submission = "bounty_hunter.submission:main"
 bounty-hunter-monitor = "bounty_hunter.monitor:main"
 bounty-hunter-algora-discovery = "bounty_hunter.algora_discovery:main"
+bounty-hunter-public-export = "bounty_hunter.public_export:main"
 
 [tool.setuptools.packages.find]
 include = ["bounty_hunter*"]

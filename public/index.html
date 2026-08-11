@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Public, read-only telemetry for the supervised Bounty Hunter experiment.">
+    <meta name="theme-color" content="#081411">
+    <title>Bounty Hunter — Live Telemetry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <header class="site-header shell">
+      <a class="brand" href="#top" aria-label="Bounty Hunter telemetry home">
+        <span class="brand-mark" aria-hidden="true">BH</span>
+        <span>Bounty Hunter <small>telemetry</small></span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#pipeline">Pipeline</a>
+        <a href="#sources">Sources</a>
+        <a href="#opportunities">Near misses</a>
+        <a class="github-link" href="https://github.com/PabloDeLaCruz1/bounty-hunter">Repository ↗</a>
+      </nav>
+    </header>
+
+    <main id="top" class="shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="live-dot"></span> Public read-only observatory</div>
+          <h1>Software bounties,<br><em>measured before pursued.</em></h1>
+          <p class="hero-intro">A supervised experiment that evaluates open-source coding bounties against profitability, payment, isolation, competition, and reputation gates.</p>
+          <div class="safety-callout">
+            <span class="shield" aria-hidden="true">◇</span>
+            <div><strong>Human approval is always required.</strong><br><span id="safety-message">No autonomous claims or submissions.</span></div>
+          </div>
+        </div>
+        <aside class="status-card" aria-label="Current monitor status">
+          <div class="status-card-head">
+            <span>Monitor status</span>
+            <span id="monitor-pill" class="status-pill loading">Loading</span>
+          </div>
+          <div class="radar" aria-hidden="true"><span></span><i></i></div>
+          <dl class="status-list">
+            <div><dt>Last scan</dt><dd id="last-scan">—</dd></div>
+            <div><dt>Next scan</dt><dd id="next-scan">—</dd></div>
+            <div><dt>Failures</dt><dd id="failure-count">—</dd></div>
+          </dl>
+        </aside>
+      </section>
+
+      <section class="metric-strip" aria-label="Lifetime metrics">
+        <article><span class="metric-label">Completed scans</span><strong id="metric-scans">—</strong><small>lifetime</small></article>
+        <article><span class="metric-label">Opportunities observed</span><strong id="metric-observed">—</strong><small>scan observations</small></article>
+        <article><span class="metric-label">Distinct opportunities</span><strong id="metric-distinct">—</strong><small>canonical records</small></article>
+        <article><span class="metric-label">Eligible today</span><strong id="metric-eligible">—</strong><small id="metric-evaluated">of — evaluated</small></article>
+      </section>
+
+      <section id="pipeline" class="section-grid section-block">
+        <div class="section-heading">
+          <span class="section-number">01</span>
+          <div><p class="kicker">Decision pipeline</p><h2>Fail closed.<br>Explain why.</h2></div>
+          <p>Every candidate must clear the full safety and economics policy. Rejection is the expected outcome when public evidence is incomplete.</p>
+        </div>
+        <div class="panel reasons-panel">
+          <div class="panel-head"><h3>Top rejection signals</h3><span>Current scan</span></div>
+          <div id="rejection-reasons" class="reason-list" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section id="sources" class="section-grid section-block">
+        <div class="section-heading">
+          <span class="section-number">02</span>
+          <div><p class="kicker">Evidence coverage</p><h2>Freshness is<br>a safety gate.</h2></div>
+          <p>Cached or partial marketplace evidence remains visible for diagnosis, but it cannot make an opportunity eligible.</p>
+        </div>
+        <div class="panel">
+          <div class="source-summary" id="source-summary"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Source</th><th>Status</th><th>Coverage</th><th>Detail</th></tr></thead>
+              <tbody id="source-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="opportunities" class="section-block">
+        <div class="section-heading horizontal">
+          <span class="section-number">03</span>
+          <div><p class="kicker">Closest safe near misses</p><h2>Ranked, never rationalized.</h2></div>
+          <p>These are the highest-ranked public candidates—not recommendations. Each still fails one or more required gates.</p>
+        </div>
+        <div id="opportunity-grid" class="opportunity-grid"></div>
+      </section>
+
+      <section class="pilot section-block">
+        <div>
+          <p class="kicker">Profitability pilot</p>
+          <h2>Evidence before scale.</h2>
+          <p>The experiment is not considered viable until at least ten measured terminal attempts produce positive cash and time-adjusted net income.</p>
+        </div>
+        <div class="pilot-progress">
+          <div class="progress-copy"><strong id="pilot-progress">— / 10</strong><span>terminal attempts</span></div>
+          <div class="progress-track"><i id="pilot-bar"></i></div>
+          <div class="pilot-stats"><span>Attempts <strong id="pilot-attempts">—</strong></span><span>Wins <strong id="pilot-wins">—</strong></span><span>Net income <strong id="pilot-net">—</strong></span></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell">
+      <span>Bounty Hunter telemetry</span>
+      <span id="snapshot-time">Snapshot unavailable</span>
+      <span>Read-only by design</span>
+    </footer>
+    <div id="error-banner" class="error-banner" hidden>Telemetry is temporarily unavailable. The dashboard remains read-only.</div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

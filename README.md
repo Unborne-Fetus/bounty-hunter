@@ -1,5 +1,7 @@
 # Bounty Hunter
 
+[View the live, read-only telemetry dashboard](https://bounty-hunter-telemetry.vercel.app)
+
 Bounty Hunter is a validation-first system for discovering, ranking, and
 supervising AI-agent implementations of coding bounties. Public submission is
 never autonomous: a human must approve both the attempt and the exact
@@ -155,6 +157,27 @@ Each scan is also appended to `data/bounty_hunter.db`. View experiment totals:
 ```bash
 python3 -m bounty_hunter.workflow summary
 ```
+
+### Public telemetry dashboard
+
+The [public telemetry dashboard](https://bounty-hunter-telemetry.vercel.app) is
+a read-only view of deliberately sanitized scan telemetry. It cannot claim an
+issue, approve or start an attempt, push a branch, open a pull request, or
+publish a submission. Those actions remain behind the existing hash-bound
+human approval workflow.
+
+Generate the allowlisted public snapshot and build the static site locally:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m bounty_hunter.public_export
+npm run build
+```
+
+The exporter reads the local report, monitor heartbeat, and historical ledger,
+then writes `public/telemetry.json`. It publishes aggregate operating metrics,
+source health, rejection reasons, and a bounded list of near misses. It does not
+publish raw monitor logs, queue identifiers, approval commands or digests,
+internal evidence blobs, local paths, or credentials.
 
 For a daily inventory snapshot, edit `config/algora_orgs.txt` and run:
 

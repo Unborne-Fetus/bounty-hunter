@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+.vercel
+__pycache__
+*.pyc
+build
+data
+reports
+tests
+examples
+bounty_hunter
+config
+LICENSE
+README.md
+pyproject.toml

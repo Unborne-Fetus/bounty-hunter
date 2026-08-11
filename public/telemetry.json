@@ -1,0 +1,801 @@
+{
+  "current_scan": {
+    "eligible": 0,
+    "evaluated": 124,
+    "source_status_counts": {
+      "fresh": 23,
+      "partial": 1,
+      "stale": 13
+    }
+  },
+  "generated_at": "2026-08-11T09:51:54.207505+00:00",
+  "lifetime": {
+    "attempts": 0,
+    "costs_usd": 0.0,
+    "distinct_opportunities": 140,
+    "human_hours": 0.0,
+    "net_income_usd": 0.0,
+    "opportunity_observations": 11118,
+    "payouts_usd": 0.0,
+    "scans": 120,
+    "wins": 0
+  },
+  "monitor": {
+    "attention_required": false,
+    "consecutive_failures": 0,
+    "finished_at": "2026-08-11T07:37:32.885503+00:00",
+    "healthy": true,
+    "next_scan_at": "2026-08-11T13:37:32.885503+00:00",
+    "started_at": "2026-08-11T07:37:07.276692+00:00"
+  },
+  "opportunities": [
+    {
+      "bounty_usd": 60.0,
+      "confidence": 0.8125,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -7.21,
+      "expected_value_usd": -18.74,
+      "gate_rejection_count": 5,
+      "issue_url": "https://github.com/lablab-ai/community-content/issues/462",
+      "payout_probability": 0.1002,
+      "rejection_reasons": [
+        "an identifiable open-source license is required",
+        "language is outside the initial supported set",
+        "an existing test suite is required",
+        "visible repository contribution guidance is required",
+        "a competing pull request already exists",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "lablab-ai/community-content",
+      "source": "algora",
+      "source_url": "https://algora.io/lablab-ai/bounties?status=open",
+      "title": "Crafting a Comprehensive Tutorial for Vectara Chat",
+      "warnings": [
+        "deadline is unknown",
+        "reproduction has not been confirmed"
+      ]
+    },
+    {
+      "bounty_usd": 1000.0,
+      "confidence": 0.625,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -20.8,
+      "expected_value_usd": -38.49,
+      "gate_rejection_count": 7,
+      "issue_url": "https://github.com/ccgjjnsvatk/fly/issues/9",
+      "payout_probability": 0.0333,
+      "rejection_reasons": [
+        "bounty issue has had no activity in the last 180 days",
+        "repository is below the initial community-adoption threshold",
+        "an identifiable open-source license is required",
+        "clear acceptance criteria are required",
+        "maintainer appears inactive",
+        "an existing test suite is required",
+        "visible repository contribution guidance is required",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "ccgjjnsvatk/fly",
+      "source": "algora",
+      "source_url": "https://algora.io/ccgjjnsvatk/bounties?status=open",
+      "title": "testgogo",
+      "warnings": [
+        "bounty exceeds the preferred range",
+        "deadline is unknown",
+        "reproduction has not been confirmed",
+        "test-suite availability is unknown"
+      ]
+    },
+    {
+      "bounty_usd": 100.0,
+      "confidence": 0.875,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -5.72,
+      "expected_value_usd": -24.89,
+      "gate_rejection_count": 4,
+      "issue_url": "https://github.com/revertinc/revert/issues/372",
+      "payout_probability": 0.0186,
+      "rejection_reasons": [
+        "clear acceptance criteria are required",
+        "maintainer appears inactive",
+        "a competing pull request already exists",
+        "estimated agent time exceeds the initial limit",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "revertinc/revert",
+      "source": "algora",
+      "source_url": "https://algora.io/revertinc/bounties?status=open",
+      "title": "[REVER-48] Workday Integration",
+      "warnings": [
+        "deadline is unknown",
+        "reproduction has not been confirmed"
+      ]
+    },
+    {
+      "bounty_usd": 100.0,
+      "confidence": 0.875,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -5.94,
+      "expected_value_usd": -25.82,
+      "gate_rejection_count": 4,
+      "issue_url": "https://github.com/revertinc/revert/issues/551",
+      "payout_probability": 0.0093,
+      "rejection_reasons": [
+        "clear acceptance criteria are required",
+        "maintainer appears inactive",
+        "a competing pull request already exists",
+        "estimated agent time exceeds the initial limit",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "revertinc/revert",
+      "source": "algora",
+      "source_url": "https://algora.io/revertinc/bounties?status=open",
+      "title": "[REVER-51] Workable Integration",
+      "warnings": [
+        "deadline is unknown",
+        "reproduction has not been confirmed"
+      ]
+    },
+    {
+      "bounty_usd": 250.0,
+      "confidence": 0.875,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -8.65,
+      "expected_value_usd": -33.32,
+      "gate_rejection_count": 6,
+      "issue_url": "https://github.com/getdozer/dozer/issues/1690",
+      "payout_probability": 0.0037,
+      "rejection_reasons": [
+        "clear acceptance criteria are required",
+        "maintainer appears inactive",
+        "language is outside the initial supported set",
+        "too many active bounty claims",
+        "a competing pull request already exists",
+        "estimated agent time exceeds the initial limit",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "getdozer/dozer",
+      "source": "algora",
+      "source_url": "https://algora.io/getdozer/bounties?status=open",
+      "title": "Sample: Dozer + LLM + Vector database + Langchain sample",
+      "warnings": [
+        "deadline is unknown",
+        "reproduction has not been confirmed"
+      ]
+    },
+    {
+      "bounty_usd": 200.0,
+      "confidence": 0.875,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -17.16,
+      "expected_value_usd": -31.75,
+      "gate_rejection_count": 1,
+      "issue_url": "https://github.com/BasedHardware/omi/issues/1643",
+      "payout_probability": 0.0,
+      "rejection_reasons": [
+        "fresh evidence of an open GitHub issue is required",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "BasedHardware/omi",
+      "source": "algora",
+      "source_url": "https://algora.io/BasedHardware/bounties?status=open",
+      "title": " Mic Mute Toggle",
+      "warnings": [
+        "deadline is unknown",
+        "reproduction has not been confirmed"
+      ]
+    },
+    {
+      "bounty_usd": 1000.0,
+      "confidence": 0.875,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -38.78,
+      "expected_value_usd": -71.75,
+      "gate_rejection_count": 2,
+      "issue_url": "https://github.com/BasedHardware/omi/issues/2316",
+      "payout_probability": 0.0,
+      "rejection_reasons": [
+        "fresh evidence of an open GitHub issue is required",
+        "clear acceptance criteria are required",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "BasedHardware/omi",
+      "source": "algora",
+      "source_url": "https://algora.io/BasedHardware/bounties?status=open",
+      "title": "send uber app",
+      "warnings": [
+        "bounty exceeds the preferred range",
+        "deadline is unknown",
+        "reproduction has not been confirmed"
+      ]
+    },
+    {
+      "bounty_usd": 300.0,
+      "confidence": 0.875,
+      "decision": "reject",
+      "eligible": false,
+      "expected_hourly_return_usd": -19.86,
+      "expected_value_usd": -36.75,
+      "gate_rejection_count": 3,
+      "issue_url": "https://github.com/BasedHardware/omi/issues/2315",
+      "payout_probability": 0.0,
+      "rejection_reasons": [
+        "fresh evidence of an open GitHub issue is required",
+        "bounty issue has had no activity in the last 180 days",
+        "clear acceptance criteria are required",
+        "estimated payout probability is below threshold",
+        "expected value is below threshold",
+        "expected hourly return is below threshold"
+      ],
+      "repository": "BasedHardware/omi",
+      "source": "algora",
+      "source_url": "https://algora.io/BasedHardware/bounties?status=open",
+      "title": "Send emails app",
+      "warnings": [
+        "deadline is unknown",
+        "reproduction has not been confirmed"
+      ]
+    }
+  ],
+  "pilot": {
+    "minimum_terminal_attempts": 10,
+    "positive_net_income_proven": false,
+    "probability_factor": 1.0,
+    "status": "collecting_data",
+    "terminal_attempts": 0
+  },
+  "rejection_reasons": [
+    {
+      "count": 124,
+      "reason": "estimated payout probability is below threshold"
+    },
+    {
+      "count": 124,
+      "reason": "expected value is below threshold"
+    },
+    {
+      "count": 124,
+      "reason": "expected hourly return is below threshold"
+    },
+    {
+      "count": 121,
+      "reason": "clear acceptance criteria are required"
+    },
+    {
+      "count": 119,
+      "reason": "fresh evidence of an open GitHub issue is required"
+    },
+    {
+      "count": 112,
+      "reason": "an existing test suite is required"
+    },
+    {
+      "count": 112,
+      "reason": "visible repository contribution guidance is required"
+    },
+    {
+      "count": 111,
+      "reason": "an identifiable open-source license is required"
+    },
+    {
+      "count": 109,
+      "reason": "repository adoption evidence is required"
+    },
+    {
+      "count": 109,
+      "reason": "repository age evidence is required"
+    }
+  ],
+  "safety": {
+    "autonomous_claims": false,
+    "autonomous_submissions": false,
+    "message": "Every attempt and submission requires explicit human approval.",
+    "mode": "supervised",
+    "read_only": true
+  },
+  "schema_version": 1,
+  "snapshot_at": "2026-08-11T07:37:32.639262+00:00",
+  "source_health": [
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "bountypay",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "boss",
+      "opportunities": 9,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": 327,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "opire",
+      "opportunities": 30,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "partial"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "taskbounty",
+      "opportunities": 0,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora_discovery_report",
+      "opportunities": 0,
+      "organizations_added": 11,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/cal",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/projectdiscovery",
+      "opportunities": 2,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/BasedHardware",
+      "opportunities": 10,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/Dokploy",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/daytonaio",
+      "opportunities": 10,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/spaceandtimelabs",
+      "opportunities": 4,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/thesysdev",
+      "opportunities": 0,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/getdozer",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/revertinc",
+      "opportunities": 2,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/comet-ml",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/aqualinkorg",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/coollabsio",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/CapSoftware",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/highlight",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/flydelabs",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/getkyo",
+      "opportunities": 0,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/jozek.woloch",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/archestra-ai",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/tscircuit",
+      "opportunities": 6,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/activepieces",
+      "opportunities": 0,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/UnsafeLabs",
+      "opportunities": 10,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/lablab-ai",
+      "opportunities": 1,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/speakers-in-tech",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/ccgjjnsvatk",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/arakoodev",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": null,
+      "name": "algora/gyroflow",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "fresh"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/kolotikwoan",
+      "opportunities": 2,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/xevrion-v2",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/Fahad-Dezloper",
+      "opportunities": 2,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/gerderanvogdsde5587",
+      "opportunities": 3,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": null,
+      "available_reported": null,
+      "errors": null,
+      "fallback_reason": "request_budget_exhausted",
+      "name": "algora/go-gitea",
+      "opportunities": 2,
+      "organizations_added": null,
+      "request_budget": null,
+      "requests": null,
+      "skipped": null,
+      "status": "stale"
+    },
+    {
+      "attempted": 18,
+      "available_reported": null,
+      "errors": 0,
+      "fallback_reason": null,
+      "name": "github",
+      "opportunities": 124,
+      "organizations_added": null,
+      "request_budget": 45,
+      "requests": 8,
+      "skipped": 106,
+      "status": "fresh"
+    }
+  ]
+}

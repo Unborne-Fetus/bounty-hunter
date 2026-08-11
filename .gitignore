@@ -12,3 +12,4 @@ reports/*.md
 reports/isolation-validation-artifacts/
 reports/attempt-pipeline-validation-artifacts/
 !reports/.gitkeep
+.vercel
