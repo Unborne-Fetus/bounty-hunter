@@ -201,6 +201,33 @@ def score_opportunity(
 
     gate_rejection_count = len(reasons)
 
+    # Unknown evidence is not the same as a verified policy violation. Keep
+    # the opportunity ineligible, but report it as needing verification when
+    # no independently confirmed hard blocker exists.
+    unverified_reasons = set()
+    if opportunity.public_repository is None:
+        unverified_reasons.add("public repository evidence is required")
+    if opportunity.issue_open is None:
+        unverified_reasons.add("fresh evidence of an open GitHub issue is required")
+    if opportunity.repository_stars is None:
+        unverified_reasons.add("repository adoption evidence is required")
+    if created_at is None:
+        unverified_reasons.add("repository age evidence is required")
+    if not opportunity.repository_license and not opportunity.evidence.get("github_enriched_at"):
+        unverified_reasons.add("an identifiable open-source license is required")
+    if opportunity.has_test_suite is None:
+        unverified_reasons.add("an existing test suite is required")
+    if opportunity.contribution_guide_found is None:
+        unverified_reasons.add("visible repository contribution guidance is required")
+    if opportunity.acceptance_criteria_clear is None:
+        unverified_reasons.add("clear acceptance criteria are required")
+    if opportunity.evidence.get("github_evidence_stale"):
+        unverified_reasons.add("GitHub evidence is stale and requires refresh")
+    confirmed_blockers = [
+        reason for reason in reasons
+        if reason not in unverified_reasons
+    ]
+
     valid, verified, win_merge, confidence, probability_warnings = _probability(
         opportunity, calibration_factor
     )
@@ -269,6 +296,8 @@ def score_opportunity(
         decision = "approve_for_human_review"
     elif eligible:
         decision = "needs_enrichment"
+    elif unverified_reasons and not confirmed_blockers:
+        decision = "needs_verification"
     else:
         decision = "reject"
 
