@@ -102,9 +102,11 @@ class DesktopAppTests(unittest.TestCase):
         from scripts import dashboard_entry
         with tempfile.TemporaryDirectory() as folder:
             with patch.dict(os.environ, {"LOCALAPPDATA": folder}):
-                with patch("bounty_hunter.desktop.main", side_effect=RuntimeError("secret example text")):
-                    with self.assertRaises(SystemExit) as caught:
-                        dashboard_entry.launch()
+                # Do not open a real native MessageBoxW on Windows CI runners.
+                with patch("scripts.dashboard_entry.sys.platform", "linux"):
+                    with patch("bounty_hunter.desktop.main", side_effect=RuntimeError("secret example text")):
+                        with self.assertRaises(SystemExit) as caught:
+                            dashboard_entry.launch()
                 self.assertEqual(caught.exception.code, 1)
                 log = (Path(folder) / "BountyHunter" / "startup-error.log").read_text(encoding="utf-8")
                 self.assertIn("RuntimeError", log)
