@@ -1,10 +1,11 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from bounty_hunter.desktop_settings import normalize_settings, workspace_paths
+from bounty_hunter.desktop_settings import normalize_settings, workspace_paths, load_settings, settings_path
 from bounty_hunter.desktop_service import scan_arguments, read_report, run_scan
 from bounty_hunter.desktop_workflow import queue_opportunity, review_attempt
 
@@ -62,6 +63,53 @@ class DesktopAppTests(unittest.TestCase):
                                 ("algora", "bountypay", "boss", "opire", "taskbounty")}})
         with self.assertRaisesRegex(ValueError, "timeout"):
             normalize_settings({"timeout_seconds": 1})
+
+    def test_old_gui_settings_survive_upgrade(self):
+        with patch.dict(os.environ, {"APPDATA": self.workspace}):
+            legacy = Path(self.workspace) / "BountyHunter" / "app-settings.json"
+            legacy.parent.mkdir(parents=True, exist_ok=True)
+            legacy.write_text(json.dumps({
+                "workspace": self.workspace,
+                "country": "us",
+                "algora_orgs": "sample-org, second-org",
+                "disabled_sources": ["boss", "opire"],
+            }), encoding="utf-8")
+            values = load_settings()
+            self.assertEqual(values["workspace"], str(Path(self.workspace).resolve()))
+            self.assertEqual(values["boss_payout_country"], "US")
+            self.assertEqual(values["algora_organizations"], ["sample-org", "second-org"])
+            self.assertFalse(values["sources"]["boss"])
+            self.assertFalse(values["sources"]["opire"])
+            self.assertTrue(values["sources"]["taskbounty"])
+
+    def test_invalid_desktop_settings_does_not_crash(self):
+        with patch.dict(os.environ, {"APPDATA": self.workspace}):
+            path = settings_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("{ invalid json", encoding="utf-8")
+            values = load_settings()
+            self.assertTrue(values["sources"]["algora"])
+            self.assertFalse(path.exists())
+            self.assertEqual(len(list(path.parent.glob("desktop.invalid-*.json"))), 1)
+
+    def test_old_dashboard_launches_unified_desktop(self):
+        from bounty_hunter import dashboard
+        with patch("bounty_hunter.desktop.main") as launch:
+            dashboard.main()
+            launch.assert_called_once_with()
+
+    def test_exe_startup_error_writes_safe_diagnostics(self):
+        from scripts import dashboard_entry
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.dict(os.environ, {"LOCALAPPDATA": folder}):
+                with patch("bounty_hunter.desktop.main", side_effect=RuntimeError("secret example text")):
+                    with self.assertRaises(SystemExit) as caught:
+                        dashboard_entry.launch()
+                self.assertEqual(caught.exception.code, 1)
+                log = (Path(folder) / "BountyHunter" / "startup-error.log").read_text(encoding="utf-8")
+                self.assertIn("RuntimeError", log)
+                self.assertIn("Traceback locations:", log)
+                self.assertNotIn("secret example text", log)
 
     def test_settings_do_not_include_secret_token(self):
         normalized = normalize_settings({
