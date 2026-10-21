@@ -86,7 +86,10 @@ def run_scan(settings: dict, progress=None, extra_health=None) -> dict:
 
 
 def _algora_discovery_is_recent(report_path: Path, now=None) -> bool:
-    """Do not repeat costly GitHub/Algora discovery every filter click."""
+    """Cache a *usable* audit, not just a recent empty one.
+
+    A recent but zero-board audit must not suppress discovery forever.
+    """
     if not report_path.is_file():
         return False
     now = now or datetime.now(timezone.utc)
@@ -98,7 +101,15 @@ def _algora_discovery_is_recent(report_path: Path, now=None) -> bool:
         if timestamp.tzinfo is None:
             return False
         age = now - timestamp.astimezone(timezone.utc)
-        return timedelta(0) <= age < timedelta(hours=24)
+        if not timedelta(0) <= age < timedelta(hours=24):
+            return False
+        return any(
+            isinstance(row, dict)
+            and row.get("status") == "fresh"
+            and row.get("promotion") == "review_for_trusted_list"
+            and int(row.get("open_board_rows") or 0) > 0
+            for row in payload.get("candidates") or []
+        )
     except (OSError, ValueError, TypeError, KeyError, OverflowError):
         return False
 
@@ -123,7 +134,7 @@ def run_actionable_scan(settings: dict, progress=None) -> dict:
     elif _algora_discovery_is_recent(paths["algora_audit"]):
         extra.append({
             "source": "algora_auto_discovery", "status": "cached",
-            "message": "Using the recent public board audit (less than 24 hours old).",
+            "message": "Using recent public board audit with one or more verified boards.",
         })
     else:
         progress("Discovering live Algora boards before scanning")
@@ -135,8 +146,8 @@ def run_actionable_scan(settings: dict, progress=None) -> dict:
                 "candidates": len(audit.get("candidates") or []),
                 "verified_boards": len(audit.get("review_candidates") or []),
                 "message": (
-                    "Public GitHub bounty labels are discovery hints only. "
-                    "Only fresh, parseable Algora board listings are scanned."
+                    "Public GitHub bounty labels and public-board hints are discovery "
+                    "leads only. Only fresh, parseable Algora board listings are scanned."
                 ),
             })
         except Exception as error:
@@ -457,8 +468,8 @@ def recheck_all_github_opportunities(settings: dict, progress=None) -> dict:
 def run_algora_audit(settings: dict) -> dict:
     """Use public GitHub evidence to discover boards; results remain untrusted hints."""
     from .algora_discovery import (
-        AlgoraBoardClient, GitHubClient, SEARCH_QUERY, audit_candidates,
-        candidate_org_counts, search_candidate_items, write_report,
+        AlgoraBoardClient, GitHubClient, SEARCH_QUERY, PUBLIC_ALGORA_BOARD_HINTS,
+        audit_candidates, candidate_org_counts, search_candidate_items, write_report,
     )
     from .github import resolve_github_token
     from datetime import datetime, timezone
@@ -477,12 +488,20 @@ def run_algora_audit(settings: dict) -> dict:
         cache_ttl_seconds=24 * 60 * 60,
         minimum_request_interval_seconds=2,
     )
-    found = search_candidate_items(github, 6)
+    discovery_error = None
+    try:
+        found = search_candidate_items(github, 6)
+    except Exception as error:
+        # A GitHub search outage should not prevent direct inspection of
+        # public Algora boards; retain the failure in diagnostics.
+        found = {"items": [], "total_count": None, "pages_fetched": 0}
+        discovery_error = type(error).__name__
     counts = candidate_org_counts(found.get("items") or [])
     candidates = audit_candidates(
         counts, client,
         configured=settings["algora_organizations"],
         maximum_candidates=18, timeout_seconds=settings["timeout_seconds"],
+        seed_organizations=PUBLIC_ALGORA_BOARD_HINTS,
     )
     report = {
         "schema_version": 1,
@@ -491,6 +510,9 @@ def run_algora_audit(settings: dict) -> dict:
         "search_total_count": found.get("total_count"),
         "search_items_examined": len(found.get("items") or []),
         "search_pages_fetched": found["pages_fetched"],
+        "github_search_status": "error" if discovery_error else "fresh",
+        "github_search_error_type": discovery_error,
+        "public_board_hints": list(PUBLIC_ALGORA_BOARD_HINTS),
         "configured_organizations": settings["algora_organizations"],
         "candidates": candidates,
         "review_candidates": [
