@@ -123,15 +123,14 @@ def clone_command(
 ) -> List[str]:
     validate_public_repo_url(repo_url)
     destination_path = str(Path(destination).resolve())
-    identity = f"{os.getuid()}:{os.getgid()}"
+    identity = (f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") and hasattr(os, "getgid") else None)
     return [
         runtime,
         "run",
         *_common_isolation_args(limits),
         "--network",
         "bridge",
-        "--user",
-        identity,
+        *(["--user", identity] if identity else []),
         "--volume",
         f"{destination_path}:/workspace:rw",
         "--workdir",
@@ -155,7 +154,7 @@ def baseline_clone_command(
 ) -> List[str]:
     resolved_source = str(Path(source_path).resolve())
     resolved_destination = str(Path(destination).resolve())
-    identity = f"{os.getuid()}:{os.getgid()}"
+    identity = (f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") and hasattr(os, "getgid") else None)
     return [
         runtime,
         "run",
@@ -163,8 +162,7 @@ def baseline_clone_command(
         "--network",
         "none",
         "--read-only",
-        "--user",
-        identity,
+        *(["--user", identity] if identity else []),
         "--env",
         "HOME=/tmp/home",
         "--tmpfs",
@@ -196,7 +194,7 @@ def execution_command(
     if not command:
         raise ValueError("execution command cannot be empty")
     resolved_source = str(Path(source_path).resolve())
-    identity = f"{os.getuid()}:{os.getgid()}"
+    identity = (f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") and hasattr(os, "getgid") else None)
     arguments = [
         runtime,
         "run",
@@ -204,8 +202,7 @@ def execution_command(
         "--network",
         "none",
         "--read-only",
-        "--user",
-        identity,
+        *(["--user", identity] if identity else []),
         "--env",
         "HOME=/tmp/home",
         "--env",
@@ -287,7 +284,7 @@ def preparation_command(
         raise ValueError("dependency preparation command is not allowlisted")
     resolved_source = str(Path(source_path).resolve())
     resolved_dependencies = str(Path(dependency_path).resolve())
-    identity = f"{os.getuid()}:{os.getgid()}"
+    identity = (f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") and hasattr(os, "getgid") else None)
     dependency_target = "/dependencies"
     workdir = "/dependencies" if stack == "javascript" else "/workspace"
     return [
@@ -297,8 +294,7 @@ def preparation_command(
         "--network",
         "bridge",
         "--read-only",
-        "--user",
-        identity,
+        *(["--user", identity] if identity else []),
         "--env",
         "HOME=/tmp/home",
         "--env",
