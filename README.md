@@ -24,10 +24,16 @@ It does **not** automatically accept work, promise payment, or withdraw money.
    payment guarantee or a shortcut around preflight, platform eligibility,
    or human approval. **Show all bounties** switches back to every result
    without losing any records; **Show actionable only** restores the filter.
+   **Find actionable** also refreshes the public Algora board discovery when
+   its saved audit is missing or more than 24 hours old. The search checks
+   GitHub bounty-label hints against actual Algora boards before importing
+   listings; it never treats a GitHub label as payment proof. Discovery is
+   bounded and cached, and a failed provider lookup is reported without
+   causing the entire scan to fail. **Scan now** remains the regular scan.
    When no matches pass, the results pane and **Why 0 matches?** summarize
-   the actual primary rejection reasons and marketplace counts so you can
-   diagnose whether the sources or the scorer need attention.
-   **Find Algora boards** can discover additional live, verified boards.
+   the actual primary rejection reasons, marketplace counts, and whether
+   Algora or BountyPay were missing, disabled, or failing.
+   **Find Algora boards** remains available for a manual discovery refresh.
    A decision of **needs_verification** means GitHub or repository evidence
    is missing, not that the bounty was conclusively rejected. Select that
    row and click **Recheck selected on GitHub** to refresh its issue and repo
