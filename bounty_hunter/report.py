@@ -97,6 +97,9 @@ def write_markdown(
             elif name == "github":
                 detail = (
                     f"{item.get('attempted', 0)} attempted, "
+                    f"{item.get('verified', 0)} verified, "
+                    f"{item.get('unverified', 0)} unverified, "
+                    f"{item.get('missing_issue_links', 0)} missing issue links, "
                     f"{item.get('skipped', 0)} skipped, "
                     f"{item.get('requests', 0)} requests, "
                     f"{item.get('errors', 0)} errors"
