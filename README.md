@@ -18,9 +18,16 @@ It does **not** automatically accept work, promise payment, or withdraw money.
    marketplace sources, optionally add Algora organizations, confirm your
    Boss payout-residency country if applicable, and choose whether to scan
    periodically while the program remains running. No API key is stored.
-4. Click **Scan now** to discover opportunities. Select a row to see the
-   reasons for acceptance or rejection, and queue an eligible bounty for
-   review. **Find Algora boards** can discover additional live, verified boards.
+4. Click **Find actionable** to scan enabled marketplaces and show **only**
+   bounties whose current checks have fully passed and whose decision is
+   `approve_for_human_review`. This is a strict *display filter*, not a
+   payment guarantee or a shortcut around preflight, platform eligibility,
+   or human approval. **Show all bounties** switches back to every result
+   without losing any records; **Show actionable only** restores the filter.
+   When no matches pass, the results pane and **Why 0 matches?** summarize
+   the actual primary rejection reasons and marketplace counts so you can
+   diagnose whether the sources or the scorer need attention.
+   **Find Algora boards** can discover additional live, verified boards.
    A decision of **needs_verification** means GitHub or repository evidence
    is missing, not that the bounty was conclusively rejected. Select that
    row and click **Recheck selected on GitHub** to refresh its issue and repo
