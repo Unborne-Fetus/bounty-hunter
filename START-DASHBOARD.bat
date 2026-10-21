@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 where py >nul 2>nul
 if %errorlevel%==0 (
-  py -3 -m bounty_hunter.dashboard
+  py -3 -m bounty_hunter.desktop
 ) else (
   where python >nul 2>nul
   if errorlevel 1 (
@@ -12,7 +12,7 @@ if %errorlevel%==0 (
     pause
     exit /b 1
   )
-  python -m bounty_hunter.dashboard
+  python -m bounty_hunter.desktop
 )
 if errorlevel 1 (
   echo.
