@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bounty_hunter.desktop_settings import normalize_settings, workspace_paths, load_settings, settings_path
-from bounty_hunter.desktop_service import scan_arguments, read_report, run_scan, recheck_github_opportunity
+from bounty_hunter.desktop_service import scan_arguments, read_report, run_scan, recheck_github_opportunity, recheck_all_github_opportunities
 from bounty_hunter.desktop_workflow import queue_opportunity, review_attempt
 
 
@@ -94,6 +94,110 @@ class DesktopAppTests(unittest.TestCase):
         record = read_report(self.settings)["opportunities"][0]
         self.assertFalse(record["score"]["eligible"])
         self.assertFalse(workspace_paths(self.settings)["db"].exists())
+
+    def test_recheck_all_verifies_links_without_override_of_payment_gates(self):
+        from bounty_hunter.models import Opportunity
+        paths = workspace_paths(self.settings)
+        paths["reports"].mkdir(parents=True, exist_ok=True)
+        items = [
+            Opportunity(
+                source="algora", source_id="1", title="Fix parser",
+                source_url="https://algora.io/acme/bounties", bounty_usd=250,
+                status="open", issue_url="https://github.com/acme/parser/issues/1",
+                language="Python",
+            ),
+            Opportunity(
+                source="opire", source_id="2", title="Fix tests",
+                source_url="https://opire.dev", bounty_usd=150,
+                status="open", issue_url="https://github.com/acme/parser/issues/2",
+                payout_requires_sponsor_action=True,
+            ),
+            Opportunity(
+                source="taskbounty", source_id="3", title="No linked repository",
+                source_url="https://example.test", bounty_usd=200, status="open",
+            ),
+        ]
+        paths["opportunities"].write_text(json.dumps({
+            "opportunities": [
+                {"opportunity": item.to_dict(), "score": {"eligible": False, "decision": "reject"}}
+                for item in items
+            ],
+            "source_health": [],
+        }), encoding="utf-8")
+        client = type("FakeClient", (), {"requests_made": 0, "rate_limited_until": None})()
+        notices = []
+
+        def enrich(opp, github):
+            self.assertIs(github, client)
+            client.requests_made += 3
+            opp.public_repository = True
+            opp.issue_open = True
+            opp.issue_activity_recent = True
+            opp.repository_archived = False
+            opp.repository_created_at = "2020-01-01T00:00:00Z"
+            opp.repository_stars = 100
+            opp.repository_license = "MIT"
+            opp.has_test_suite = True
+            opp.contribution_guide_found = True
+            opp.acceptance_criteria_clear = True
+            opp.maintainer_active = True
+            opp.competing_prs = 0
+            opp.evidence["github_enriched_at"] = "2026-10-21T00:00:00Z"
+
+        with patch("bounty_hunter.github.GitHubClient", return_value=client):
+            with patch("bounty_hunter.github.enrich_opportunity", side_effect=enrich):
+                result = recheck_all_github_opportunities(
+                    self.settings, progress=notices.append
+                )
+        self.assertEqual(result["attempted"], 2)
+        self.assertEqual(result["verified"], 2)
+        self.assertEqual(result["missing_issue_links"], 1)
+        self.assertEqual(result["requests"], 6)
+        self.assertEqual(len(notices), 2)
+        records = read_report(self.settings)["opportunities"]
+        by_id = {r["opportunity"]["source_id"]: r for r in records}
+        self.assertGreater(by_id["1"]["score"]["confidence"], 0.7)
+        self.assertEqual(
+            by_id["2"]["opportunity"]["evidence"]["github_verification_status"],
+            "verified",
+        )
+        self.assertFalse(by_id["2"]["score"]["eligible"])
+        self.assertIn(
+            "payout requires sponsor action after completion and is not guaranteed",
+            by_id["2"]["score"]["rejection_reasons"],
+        )
+        self.assertEqual(
+            by_id["3"]["opportunity"]["evidence"]["github_verification_status"],
+            "missing_issue_link",
+        )
+
+    def test_recheck_all_defers_on_budget_and_never_keeps_stale_eligibility(self):
+        from bounty_hunter.models import Opportunity
+        paths = workspace_paths(self.settings)
+        paths["reports"].mkdir(parents=True, exist_ok=True)
+        issue = Opportunity(
+            source="algora", source_id="1", title="Prior verified",
+            source_url="https://algora.io/acme/bounties", bounty_usd=250,
+            status="open", issue_url="https://github.com/acme/parser/issues/1",
+            public_repository=True, issue_open=True, repository_stars=100,
+            repository_license="MIT", repository_created_at="2020-01-01T00:00:00Z",
+            evidence={"github_enriched_at": "2026-10-20T00:00:00Z"},
+        )
+        paths["opportunities"].write_text(json.dumps({
+            "opportunities": [{"opportunity": issue.to_dict(), "score": {
+                "eligible": True, "decision": "approve_for_human_review",
+            }}],
+        }), encoding="utf-8")
+        client = type("FakeClient", (), {"requests_made": 45, "rate_limited_until": None})()
+        with patch("bounty_hunter.github.GitHubClient", return_value=client):
+            with patch("bounty_hunter.github.enrich_opportunity") as enrich:
+                result = recheck_all_github_opportunities(self.settings)
+                enrich.assert_not_called()
+        self.assertEqual(result["deferred"], 1)
+        record = read_report(self.settings)["opportunities"][0]
+        self.assertFalse(record["score"]["eligible"])
+        self.assertEqual(record["score"]["probability_valid"], 0)
+        self.assertTrue(record["opportunity"]["evidence"]["github_evidence_stale"])
 
     def test_settings_are_local_and_source_preferences_applied(self):
         args = scan_arguments(self.settings)
