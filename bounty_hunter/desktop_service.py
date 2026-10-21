@@ -119,6 +119,20 @@ def recheck_github_opportunity(settings: dict, source: str, source_id: str) -> d
             "This marketplace listing has no usable GitHub issue URL. "
             "Open the provider listing to check whether it links to a public issue."
         )
+    # Clear only prior GitHub-derived signals. Marketplace facts and payout
+    # restrictions are retained; old GitHub errors must not poison a retry.
+    from .cli import HISTORICAL_GITHUB_FIELDS
+    for field in HISTORICAL_GITHUB_FIELDS:
+        setattr(opportunity, field, None)
+    for key in (
+        "github_error", "github_enriched_at", "github_not_found",
+        "github_evidence_stale", "github_enrichment_skipped",
+        "github_issue_updated_at", "github_repo_pushed_at",
+        "github_repo_created_at", "bounty_withdrawal_signal",
+        "bounty_withdrawal_provenance", "ai_contribution_reputation_risk",
+        "ai_contribution_risk_provenance", "tree_truncated",
+    ):
+        opportunity.evidence.pop(key, None)
     # Force fresh evidence for a deliberate single-item recheck, while
     # retaining request limits and failing closed on GitHub errors.
     client = GitHubClient(
