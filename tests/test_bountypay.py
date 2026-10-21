@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 from bounty_hunter.scoring import score_opportunity
 from bounty_hunter.sources.bountypay import (
@@ -88,6 +88,59 @@ class BountyPayAdapterTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertIn("--max-time", command)
         self.assertIn("7", command)
+
+
+    def test_provider_http_500_is_reported_without_curl_retry(self):
+        error = HTTPError(
+            "https://bountypay.luccilabs.xyz/api/bounties/open",
+            500, "Internal Server Error", {}, None
+        )
+        with patch(
+            "bounty_hunter.sources.bountypay.urlopen",
+            side_effect=error,
+        ), patch(
+            "bounty_hunter.sources.bountypay.subprocess.run",
+        ) as run:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 500"):
+                fetch_inventory()
+            run.assert_not_called()
+
+    def test_curl_http_500_includes_status_not_only_exit_22(self):
+        result = subprocess.CompletedProcess(
+            ["curl"], 22,
+            stdout=b"__BH_HTTP_STATUS__:500",
+            stderr=b"curl: (22) HTTP 500",
+        )
+        with patch(
+            "bounty_hunter.sources.bountypay.urlopen",
+            side_effect=URLError("ssl"),
+        ), patch(
+            "bounty_hunter.sources.bountypay.shutil.which",
+            return_value="curl.exe",
+        ), patch(
+            "bounty_hunter.sources.bountypay.subprocess.run",
+            return_value=result,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 500"):
+                fetch_inventory()
+
+    def test_curl_success_with_status_suffix_parses_inventory(self):
+        result = subprocess.CompletedProcess(
+            ["curl"], 0,
+            stdout=b"[]__BH_HTTP_STATUS__:200",
+            stderr=b"",
+        )
+        with patch(
+            "bounty_hunter.sources.bountypay.urlopen",
+            side_effect=URLError("ssl"),
+        ), patch(
+            "bounty_hunter.sources.bountypay.shutil.which",
+            return_value="curl.exe",
+        ), patch(
+            "bounty_hunter.sources.bountypay.subprocess.run",
+            return_value=result,
+        ):
+            self.assertEqual(fetch_inventory(), [])
 
 
 if __name__ == "__main__":
