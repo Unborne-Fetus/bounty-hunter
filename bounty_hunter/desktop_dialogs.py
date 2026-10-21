@@ -47,8 +47,17 @@ class SetupDialog(tk.Toplevel):
         return entry
 
     def _build(self):
-        outer = tk.Frame(self, bg=BG, padx=24, pady=18)
-        outer.pack(fill="both", expand=True)
+        footer = tk.Frame(self, bg=BG, padx=24, pady=12)
+        footer.pack(side="bottom", fill="x")
+        canvas = tk.Canvas(self, bg=BG, highlightthickness=0)
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        outer = tk.Frame(canvas, bg=BG, padx=24, pady=18)
+        content_id = canvas.create_window((0, 0), window=outer, anchor="nw")
+        outer.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(content_id, width=event.width))
         self._label(outer, "Set up your local Bounty Hunter", 18, TEXT, True).pack(anchor="w")
         self._label(
             outer, "No command line required. Settings never store credentials or wallet keys.",
@@ -127,7 +136,7 @@ class SetupDialog(tk.Toplevel):
             9, MUTED
         ).pack(anchor="w", pady=(5, 0))
 
-        actions = tk.Frame(outer, bg=BG)
+        actions = footer
         actions.pack(fill="x")
         tk.Button(
             actions, text="Save & continue", command=self._save,
