@@ -97,7 +97,7 @@ def recheck_github_opportunity(settings: dict, source: str, source_id: str) -> d
     This does not bypass any rejection gates. Unavailable, stale, or
     rate-limited evidence cannot make an opportunity eligible.
     """
-    from .github import GitHubClient, enrich_opportunity, parse_issue_url
+    from .github import GitHubClient, enrich_opportunity, parse_issue_url, resolve_github_token
     from .models import Opportunity
 
     settings = normalize_settings(settings)
@@ -136,7 +136,7 @@ def recheck_github_opportunity(settings: dict, source: str, source_id: str) -> d
     # Force fresh evidence for a deliberate single-item recheck, while
     # retaining request limits and failing closed on GitHub errors.
     client = GitHubClient(
-        token=os.environ.get(settings["github_token_env"]),
+        token=resolve_github_token(settings["github_token_env"]),
         timeout_seconds=settings["timeout_seconds"],
         cache_path=str(paths["root"] / "data" / "github-cache.json"),
         cache_ttl_seconds=0,
@@ -219,7 +219,7 @@ def recheck_all_github_opportunities(settings: dict, progress=None) -> dict:
     stale, or failed verification is promoted to eligible, and payout rules
     remain unchanged. Results are saved once after the whole batch.
     """
-    from .github import GitHubClient, enrich_opportunity, parse_issue_url
+    from .github import GitHubClient, enrich_opportunity, parse_issue_url, resolve_github_token
     from .models import Opportunity
     from .cli import HISTORICAL_GITHUB_FIELDS, _github_priority
 
@@ -253,7 +253,7 @@ def recheck_all_github_opportunities(settings: dict, progress=None) -> dict:
 
     budget = 45
     client = GitHubClient(
-        token=os.environ.get(settings["github_token_env"]),
+        token=resolve_github_token(settings["github_token_env"]),
         timeout_seconds=settings["timeout_seconds"],
         cache_path=str(paths["root"] / "data" / "github-cache.json"),
         cache_ttl_seconds=0,
@@ -383,13 +383,14 @@ def run_algora_audit(settings: dict) -> dict:
         AlgoraBoardClient, GitHubClient, SEARCH_QUERY, audit_candidates,
         candidate_org_counts, search_candidate_items, write_report,
     )
+    from .github import resolve_github_token
     from datetime import datetime, timezone
 
     settings = normalize_settings(settings)
     paths = workspace_paths(settings)
     root = paths["root"]
     github = GitHubClient(
-        token=os.environ.get(settings["github_token_env"]),
+        token=resolve_github_token(settings["github_token_env"]),
         timeout_seconds=settings["timeout_seconds"],
         cache_path=str(root / "data" / "github-discovery-cache.json"),
         cache_ttl_seconds=24 * 60 * 60,
