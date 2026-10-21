@@ -1,0 +1,41 @@
+name: Windows Earnings Dashboard
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "bounty_hunter/dashboard.py"
+      - "bounty_hunter/earnings.py"
+      - "bounty_hunter/history.py"
+      - "scripts/dashboard_entry.py"
+      - "START-DASHBOARD.bat"
+      - "tests/test_earnings.py"
+      - ".github/workflows/build-windows-dashboard.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run earnings tests
+        run: python -m unittest discover -s tests -p test_earnings.py -v
+      - name: Install Windows packager
+        run: python -m pip install "pyinstaller>=6,<7"
+      - name: Build BountyHunter.exe
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name BountyHunter --paths . scripts/dashboard_entry.py
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: BountyHunter-Windows
+          path: dist/BountyHunter.exe
+          if-no-files-found: error
+          retention-days: 14
