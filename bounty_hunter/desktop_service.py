@@ -90,6 +90,110 @@ def read_report(settings: dict) -> dict:
     return payload
 
 
+
+def recheck_github_opportunity(settings: dict, source: str, source_id: str) -> dict:
+    """Refresh one selected GitHub issue from live API evidence.
+
+    This does not bypass any rejection gates. Unavailable, stale, or
+    rate-limited evidence cannot make an opportunity eligible.
+    """
+    from .github import GitHubClient, enrich_opportunity, parse_issue_url
+    from .models import Opportunity
+
+    settings = normalize_settings(settings)
+    paths = workspace_paths(settings)
+    report = read_report(settings)
+    selected = next(
+        (
+            item for item in report["opportunities"]
+            if item["opportunity"]["source"] == source
+            and str(item["opportunity"]["source_id"]) == str(source_id)
+        ),
+        None,
+    )
+    if selected is None:
+        raise ValueError("Selected bounty is no longer in the latest scan. Scan again.")
+    opportunity = Opportunity.from_dict(selected["opportunity"])
+    if not parse_issue_url(opportunity.issue_url):
+        raise ValueError(
+            "This marketplace listing has no usable GitHub issue URL. "
+            "Open the provider listing to check whether it links to a public issue."
+        )
+    # Force fresh evidence for a deliberate single-item recheck, while
+    # retaining request limits and failing closed on GitHub errors.
+    client = GitHubClient(
+        token=os.environ.get(settings["github_token_env"]),
+        timeout_seconds=settings["timeout_seconds"],
+        cache_path=str(paths["root"] / "data" / "github-cache.json"),
+        cache_ttl_seconds=0,
+        maximum_requests_per_run=15,
+    )
+    enrich_opportunity(opportunity, client)
+    if opportunity.evidence.get("github_error"):
+        raise RuntimeError(
+            "GitHub verification was unsuccessful (HTTP {}). "
+            "Check GitHub connectivity, authentication or API limits; "
+            "this opportunity remains ineligible.".format(
+                opportunity.evidence["github_error"]
+            )
+        )
+    if (
+        not opportunity.evidence.get("github_enriched_at")
+        and not opportunity.evidence.get("github_not_found")
+    ):
+        raise RuntimeError("GitHub could not provide fresh verification.")
+    updated = []
+    for item in report["opportunities"]:
+        prior = item["opportunity"]
+        if prior["source"] == source and str(prior["source_id"]) == str(source_id):
+            updated.append(opportunity)
+        else:
+            updated.append(Opportunity.from_dict(prior))
+    calibration = report.get("calibration") or {}
+    config = replace(
+        ScoringConfig(),
+        default_execution_cost_usd=calibration.get(
+            "default_execution_cost_usd", ScoringConfig().default_execution_cost_usd
+        ),
+        default_human_hours=calibration.get(
+            "default_human_hours", ScoringConfig().default_human_hours
+        ),
+    )
+    records = ranked_records(
+        updated,
+        config=config,
+        calibration_factor=calibration.get("probability_factor", 1.0),
+    )
+    health = list(report.get("source_health") or [])
+    health.append({
+        "source": "github_selected_recheck",
+        "status": "fresh" if opportunity.evidence.get("github_enriched_at") else "not_found",
+        "attempted": 1,
+        "requests": client.requests_made,
+    })
+    paths["reports"].mkdir(parents=True, exist_ok=True)
+    write_json(records, str(paths["opportunities"]), source_health=health, calibration=calibration)
+    write_markdown(
+        records, str(paths["reports"] / "opportunities.md"),
+        source_health=health, calibration=calibration,
+    )
+    history = History(str(paths["db"]))
+    try:
+        history.record_scan(records)
+    finally:
+        history.close()
+    outcome = next(
+        item["score"] for item in records
+        if item["opportunity"]["source"] == source
+        and str(item["opportunity"]["source_id"]) == str(source_id)
+    )
+    return {
+        "decision": outcome["decision"],
+        "eligible": outcome["eligible"],
+        "requests": client.requests_made,
+    }
+
+
 def run_algora_audit(settings: dict) -> dict:
     """Use public GitHub evidence to discover boards; results remain untrusted hints."""
     from .algora_discovery import (
