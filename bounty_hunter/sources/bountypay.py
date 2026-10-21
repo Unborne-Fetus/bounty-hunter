@@ -52,7 +52,7 @@ def fetch_inventory(timeout_seconds: int = 20) -> list:
                 "--user-agent",
                 "bounty-hunter/0.1",
                 "--write-out",
-                "\\nBH_HTTP_STATUS:%{http_code}",
+                "__BH_HTTP_STATUS__:%{http_code}",
                 API_URL,
             ],
             check=False,
@@ -61,7 +61,7 @@ def fetch_inventory(timeout_seconds: int = 20) -> list:
         )
         body, separator, status_text = result.stdout.decode(
             "utf-8", errors="replace"
-        ).rpartition("\nBH_HTTP_STATUS:")
+        ).rpartition("__BH_HTTP_STATUS__:")
         status = status_text.strip() if separator else None
         if result.returncode:
             if result.returncode == 22 and status and status.isdigit() and int(status) >= 400:
