@@ -31,6 +31,46 @@ class DesktopGuiSmokeTests(unittest.TestCase):
                 finally:
                     app.destroy()
 
+    def test_actionable_only_filter_preserves_original_report_indices(self):
+        with tempfile.TemporaryDirectory() as folder:
+            settings = normalize_settings({"workspace": folder, "auto_scan": False})
+            app = Workbench(settings=settings)
+            try:
+                app.withdraw()
+                records = []
+                for index, decision in enumerate(
+                    ("reject", "approve_for_human_review", "needs_verification")
+                ):
+                    records.append({
+                        "opportunity": {
+                            "source": "algora", "source_id": str(index),
+                            "title": "Opportunity " + str(index), "bounty_usd": 100,
+                        },
+                        "score": {
+                            "eligible": index == 1, "decision": decision,
+                            "expected_value_usd": 25, "confidence": 0.75,
+                            "rejection_reasons": ["a blocker"] if index != 1 else [],
+                        },
+                    })
+                app.scan_report = {
+                    "opportunities": records, "source_health": [],
+                    "generated_at": "2030-01-01T00:00:00Z",
+                }
+                app.navigate("bounties")
+                self.assertEqual(app.scan_tree.get_children(), ("1",))
+                app.scan_tree.selection_set("1")
+                self.assertEqual(
+                    app._selected_bounty()["opportunity"]["source_id"], "1"
+                )
+                app.toggle_actionable_filter()
+                self.assertEqual(
+                    app.scan_tree.get_children(), ("0", "1", "2")
+                )
+                app.toggle_actionable_filter()
+                self.assertEqual(app.scan_tree.get_children(), ("1",))
+            finally:
+                app.destroy()
+
     def test_attempt_controls_and_setup_timeout(self):
         with tempfile.TemporaryDirectory() as folder:
             settings = normalize_settings({"workspace": folder, "timeout_seconds": 45})
