@@ -2,6 +2,7 @@
 import json
 import os
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import cli
@@ -43,7 +44,7 @@ def scan_arguments(settings: dict):
     return parsed
 
 
-def run_scan(settings: dict, progress=None) -> dict:
+def run_scan(settings: dict, progress=None, extra_health=None) -> dict:
     """Run synchronously; desktop runs it in a worker, never the UI thread."""
     args = scan_arguments(settings)
     args.progress = progress
@@ -51,6 +52,8 @@ def run_scan(settings: dict, progress=None) -> dict:
     paths["reports"].mkdir(parents=True, exist_ok=True)
     args.history_db = str(paths["db"])
     opportunities = cli._collect(args)
+    if extra_health:
+        args.source_health.extend(extra_health)
     history = History(args.history_db)
     try:
         calibration = history.outcome_calibration()
@@ -78,6 +81,76 @@ def run_scan(settings: dict, progress=None) -> dict:
         "source_health": getattr(args, "source_health", []),
         "report_path": str(paths["opportunities"]),
     }
+
+
+
+def _algora_discovery_is_recent(report_path: Path, now=None) -> bool:
+    """Do not repeat costly GitHub/Algora discovery every filter click."""
+    if not report_path.is_file():
+        return False
+    now = now or datetime.now(timezone.utc)
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        timestamp = datetime.fromisoformat(
+            str(payload["generated_at"]).replace("Z", "+00:00")
+        )
+        if timestamp.tzinfo is None:
+            return False
+        age = now - timestamp.astimezone(timezone.utc)
+        return timedelta(0) <= age < timedelta(hours=24)
+    except (OSError, ValueError, TypeError, KeyError, OverflowError):
+        return False
+
+
+def run_actionable_scan(settings: dict, progress=None) -> dict:
+    """Expand trusted board discovery before doing normal strict scoring.
+
+    A missing/old Algora audit is a frequent reason actionable scans only
+    find Boss and Opire. GitHub hints are *never* treated as bounties: Algora
+    candidates still require a fresh parseable live board. All eligibility
+    and payout gates are unchanged.
+    """
+    settings = normalize_settings(settings)
+    progress = progress or (lambda message: None)
+    paths = workspace_paths(settings)
+    extra = []
+    if not settings["sources"]["algora"]:
+        extra.append({
+            "source": "algora_auto_discovery", "status": "disabled",
+            "message": "Algora is disabled in Setup; enable it to include its boards.",
+        })
+    elif _algora_discovery_is_recent(paths["algora_audit"]):
+        extra.append({
+            "source": "algora_auto_discovery", "status": "cached",
+            "message": "Using the recent public board audit (less than 24 hours old).",
+        })
+    else:
+        progress("Discovering live Algora boards before scanning")
+        try:
+            audit = run_algora_audit(settings)
+            extra.append({
+                "source": "algora_auto_discovery",
+                "status": "fresh",
+                "candidates": len(audit.get("candidates") or []),
+                "verified_boards": len(audit.get("review_candidates") or []),
+                "message": (
+                    "Public GitHub bounty labels are discovery hints only. "
+                    "Only fresh, parseable Algora board listings are scanned."
+                ),
+            })
+        except Exception as error:
+            extra.append({
+                "source": "algora_auto_discovery", "status": "error",
+                "error_type": type(error).__name__,
+                "message": (
+                    "Algora discovery failed. The scan still checks other enabled "
+                    "sources and any previously verified boards that remain fresh."
+                ),
+            })
+            progress("Algora discovery unavailable; scanning the remaining sources")
+    result = run_scan(settings, progress=progress, extra_health=extra)
+    result["algora_auto_discovery"] = extra[0]
+    return result
 
 
 def read_report(settings: dict) -> dict:
