@@ -19,7 +19,7 @@ from tkinter import filedialog, messagebox, ttk
 from .dashboard import Dashboard, BG, PANEL, RAISED, TEXT, MUTED, ACCENT, WARNING, FONT, _money
 from .desktop_dialogs import ReviewDialog, SetupDialog
 from .desktop_settings import load_settings, normalize_settings, save_settings, settings_path, workspace_paths
-from .desktop_service import read_report, run_algora_audit, run_scan, recheck_github_opportunity
+from .desktop_service import read_report, run_algora_audit, run_scan, recheck_github_opportunity, recheck_all_github_opportunities
 from .desktop_workflow import (
     queue_opportunity, review_attempt, approve_attempt, approve_review_bundle,
     perform_step, publish_approved, bundle_preview, package_preview,
@@ -247,6 +247,9 @@ class Workbench(Dashboard):
         top = tk.Frame(self.content, bg=BG)
         top.pack(fill="x", pady=(5, 12))
         self._button(top, "Scan now", self.start_scan, True).pack(side="left")
+        self._button(top, "Recheck all on GitHub", self.recheck_all_github).pack(
+            side="left", padx=(10, 0)
+        )
         self._button(top, "Find Algora boards", self.start_audit).pack(
             side="left", padx=(10, 0)
         )
@@ -266,14 +269,15 @@ class Workbench(Dashboard):
             10, MUTED
         ).pack(anchor="w", pady=(2, 9))
 
-        cols = ("source", "reward", "decision", "title", "value")
+        cols = ("source", "reward", "decision", "github", "title", "value")
         self.scan_tree = ttk.Treeview(
             self.content, columns=cols, show="headings", height=11,
             style="Bounty.Treeview", selectmode="browse"
         )
         for key, text, size in [
             ("source", "Marketplace", 100), ("reward", "Reward", 90),
-            ("decision", "Decision", 145), ("title", "Issue", 340),
+            ("decision", "Decision", 145), ("github", "GitHub check", 115),
+            ("title", "Issue", 310),
             ("value", "Est. value", 105),
         ]:
             self.scan_tree.heading(key, text=text)
@@ -287,7 +291,11 @@ class Workbench(Dashboard):
             self.scan_tree.insert(
                 "", "end", iid=str(i),
                 values=(opp["source"], _money(opp["bounty_usd"]),
-                        score["decision"], opp["title"][:130],
+                        score["decision"],
+                        opp.get("evidence", {}).get("github_verification_status") or (
+                            "not linked" if not opp.get("issue_url") else "not verified"
+                        ),
+                        opp["title"][:130],
                         _money(score.get("expected_value_usd", 0))),
                 tags=("eligible" if score["eligible"] else (
                      "unverified" if score.get("decision") == "needs_verification" else "rejected"
@@ -321,7 +329,8 @@ class Workbench(Dashboard):
                       "Use Find Algora boards to discover additional boards, then scan again.")
         elif not eligible_count:
             detail = ("No bounties passed the current checks. Select a row to see its reasons.\n"
-                      "Use Recheck selected on GitHub for missing evidence; Source diagnostics shows API issues.")
+                      "Recheck all on GitHub verifies linked issues. Payment terms and other "
+                      "confirmed rejections remain separate from missing data.")
         else:
             detail = "Select a bounty to view eligibility, payout warnings and source evidence."
         self._set_detail(detail)
@@ -368,7 +377,9 @@ class Workbench(Dashboard):
             opportunity.get("title", ""),
             f'Provider: {opportunity["source"]}    Bounty: {_money(opportunity["bounty_usd"])}',
             f'Repository: {opportunity.get("repository") or "not verified"}',
-            f'Decision: {score.get("decision")}    Confidence: {score.get("confidence", 0):.0%}',
+            f'Decision: {score.get("decision")}    Evidence coverage: {score.get("confidence", 0):.0%}',
+            "Coverage measures known scoring signals, not success odds or payout certainty.",
+            f'GitHub verification: {opportunity.get("evidence", {}).get("github_verification_status") or "not checked"}',
             "",
             "Missing evidence / blockers:" if score.get("decision") == "needs_verification"
             else ("Rejection reasons:" if score.get("rejection_reasons") else "No blocking reasons recorded"),
@@ -399,6 +410,44 @@ class Workbench(Dashboard):
             webbrowser.open(trusted)
         else:
             messagebox.showinfo("No link", "No verified source URL is available.", parent=self)
+
+    def recheck_all_github(self):
+        rows = self.scan_report.get("opportunities") or []
+        if not rows:
+            messagebox.showinfo(
+                "No bounties to check", "Run Scan now first.", parent=self
+            )
+            return
+        if not messagebox.askyesno(
+            "Recheck all GitHub evidence",
+            f"Recheck all {len(rows)} saved bounties with valid GitHub issue links?\n\n"
+            "This makes bounded live GitHub API requests. Records without a "
+            "usable issue link cannot be verified. Payout restrictions "
+            "and other eligibility rules stay in place.",
+            parent=self
+        ):
+            return
+        settings = dict(self.settings)
+        progress = lambda message: self._jobs.put(("progress", "", message, None))
+        self._run_async(
+            "Rechecking all GitHub evidence",
+            lambda: recheck_all_github_opportunities(settings, progress=progress),
+            on_success=self._recheck_all_complete,
+        )
+
+    def _recheck_all_complete(self, result):
+        self._load_report()
+        self.navigate("bounties")
+        summary = (
+            f'{result["verified"]} GitHub issues verified, '
+            f'{result["not_found"]} missing/closed links, '
+            f'{result["missing_issue_links"]} without issue URLs, '
+            f'{result["failed"]} errors, {result["deferred"]} deferred.\n'
+            f'{result["eligible"]} bounties pass all checks. '
+            f'{result["requests"]} GitHub API requests used.'
+        )
+        self.message.set("Recheck all completed: " + summary.replace("\n", " ")[:190])
+        messagebox.showinfo("GitHub recheck results", summary, parent=self)
 
     def recheck_selected_github(self):
         try:
