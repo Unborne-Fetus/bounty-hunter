@@ -1,16 +1,16 @@
-name: Windows Earnings Dashboard
+name: Windows Desktop App
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "bounty_hunter/dashboard.py"
-      - "bounty_hunter/earnings.py"
-      - "bounty_hunter/history.py"
+      - "bounty_hunter/**"
       - "scripts/dashboard_entry.py"
       - "START-DASHBOARD.bat"
       - "tests/test_earnings.py"
+      - "tests/test_desktop_app.py"
+      - "installer/**"
       - ".github/workflows/build-windows-dashboard.yml"
 
 permissions:
@@ -26,16 +26,36 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Run earnings tests
+      - name: Check Python syntax
+        run: python -m compileall -q bounty_hunter scripts/dashboard_entry.py
+      - name: Test earnings accounting
         run: python -m unittest discover -s tests -p test_earnings.py -v
+      - name: Test desktop setup and scanner
+        run: python -m unittest discover -s tests -p test_desktop_app.py -v
       - name: Install Windows packager
         run: python -m pip install "pyinstaller>=6,<7"
-      - name: Build BountyHunter.exe
+      - name: Build one-file BountyHunter.exe
         run: pyinstaller --noconfirm --clean --onefile --windowed --name BountyHunter --paths . scripts/dashboard_entry.py
-      - name: Upload Windows EXE
+      - name: Upload portable Windows EXE
         uses: actions/upload-artifact@v4
         with:
-          name: BountyHunter-Windows
+          name: BountyHunter-Windows-Portable
           path: dist/BountyHunter.exe
+          if-no-files-found: error
+          retention-days: 14
+      - name: Install NSIS
+        run: choco install nsis --no-progress -y
+      - name: Build click-to-install Windows Setup
+        shell: pwsh
+        run: |
+          $nsis = "${env:ProgramFiles(x86)}\\NSIS\\makensis.exe"
+          if (!(Test-Path $nsis)) { throw "NSIS installation not found" }
+          & $nsis /V3 installer/BountyHunter.nsi
+          if ($LASTEXITCODE -ne 0) { throw "Installer build failed" }
+      - name: Upload click-to-install Windows Setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: BountyHunter-Windows-Installer
+          path: dist/BountyHunter-Setup.exe
           if-no-files-found: error
           retention-days: 14
