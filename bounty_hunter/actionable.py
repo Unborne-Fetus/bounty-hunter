@@ -65,17 +65,48 @@ def actionability_summary(records: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def _source_health_lines(source_health) -> List[str]:
+    """Show actual provider failures without inventing candidate inventory."""
+    lines = ["", "Bounty discovery health:"]
+    source_names = {
+        "algora", "algora_auto_discovery", "algora_discovery_report",
+        "bountypay", "boss", "opire", "taskbounty",
+    }
+    for health in source_health:
+        name = health.get("source")
+        if name not in source_names:
+            continue
+        status = str(health.get("status") or "unknown")
+        if name == "algora" and health.get("organization"):
+            name += "/" + str(health["organization"])
+        detail = str(health.get("message") or "")
+        if health.get("verified_boards") is not None:
+            detail += f' Verified public boards: {health["verified_boards"]}.'
+        if health.get("error"):
+            # Source error text is already bounded by the collector. Limit it
+            # further in the short diagnosis, leaving full details in
+            # the Source diagnostics panel.
+            detail += " Provider error: " + str(health["error"])[:180]
+        lines.append(
+            f"  • {name}: {status}" + (f" — {detail.strip()}" if detail else "")
+        )
+    return lines
+
+
 def actionable_diagnostics(
     records: Iterable[Dict[str, Any]], source_health=None
 ) -> str:
     """User-facing explanation for an empty filter and next debugging step."""
     result = actionability_summary(records)
     if not result["total"]:
-        return (
-            "No marketplace listings were discovered in this scan.\n"
-            "Check Source diagnostics, enable suitable sources in Setup, "
-            "and try Find Algora boards. No eligibility decision was made."
-        )
+        lines = [
+            "No marketplace listings were discovered in this scan.",
+            "Check Source diagnostics, enabled sources in Setup, and "
+            "any verified Algora board results. No eligibility decision was made.",
+        ]
+        if source_health:
+            lines.extend(_source_health_lines(source_health))
+        return "\n".join(lines)
     if result["actionable"]:
         return (
             f'{result["actionable"]} of {result["total"]} discovered bounties '
@@ -105,24 +136,7 @@ def actionable_diagnostics(
         ),
     ])
     if source_health:
-        source_names = {"algora", "algora_auto_discovery", "algora_discovery_report",
-                        "bountypay", "boss", "opire", "taskbounty"}
-        lines.extend(["", "Bounty discovery health:"])
-        for health in source_health:
-            name = health.get("source")
-            if name not in source_names:
-                continue
-            status = str(health.get("status") or "unknown")
-            if name == "algora" and health.get("organization"):
-                name += "/" + str(health["organization"])
-            detail = str(health.get("message") or "")
-            if health.get("verified_boards") is not None:
-                detail += f' Verified public boards: {health["verified_boards"]}.'
-            if health.get("error") and not detail:
-                detail = "Provider request failed; open Source diagnostics."
-            lines.append(
-                f"  • {name}: {status}" + (f" — {detail.strip()}" if detail else "")
-            )
+        lines.extend(_source_health_lines(source_health))
     lines.extend([
         "",
         "GitHub 'verified' means its linked issue was checked; it does not "
