@@ -212,6 +212,9 @@ class Workbench(Dashboard):
         self._button(top, "Find Algora boards", self.start_audit).pack(
             side="left", padx=(10, 0)
         )
+        self._button(top, "Source diagnostics", self.show_source_health).pack(
+            side="left", padx=(10, 0)
+        )
         self._button(top, "Setup", self.open_setup).pack(side="right")
 
         report = self.scan_report
@@ -279,6 +282,14 @@ class Workbench(Dashboard):
                 row.get("status") in {"error", "stale", "partial"} for row in health
             ) else MUTED
         ).pack(anchor="w", pady=(8, 0))
+
+    def show_source_health(self):
+        health = self.scan_report.get("source_health") or []
+        self._preview_window(
+            "Source diagnostics from latest scan",
+            json.dumps(health, indent=2, sort_keys=True) if health
+            else "No scan has completed yet. Click Scan now to collect source health.",
+        )
 
     def _set_detail(self, text):
         self.detail.configure(state="normal")
