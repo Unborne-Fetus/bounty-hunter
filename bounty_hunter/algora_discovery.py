@@ -13,6 +13,11 @@ from .sources.algora import AlgoraBoardClient, normalize_html
 
 SEARCH_QUERY = 'is:issue is:open label:"💎 Bounty" archived:false'
 TARGET_LABEL = "💎 bounty"
+# Public boards with previously observed open rows. Hints only: fresh board
+# evidence and then live GitHub issue verification remain mandatory.
+PUBLIC_ALGORA_BOARD_HINTS = (
+    "projectdiscovery", "spaceandtimelabs", "cal", "highlight",
+)
 
 
 def configured_orgs(path: str) -> List[str]:
@@ -84,9 +89,15 @@ def audit_candidates(
     configured: Iterable[str] = (),
     maximum_candidates: int = 20,
     timeout_seconds: int = 20,
+    seed_organizations: Iterable[str] = (),
 ) -> List[Dict[str, Any]]:
     configured_lower = {item.lower() for item in configured}
-    candidates = sorted(counts, key=lambda org: (-counts[org], org.lower()))
+    # Inspect explicit public-board hints even if GitHub's label query finds
+    # nothing, but never promote a hint without fresh public board rows.
+    candidates = list(dict.fromkeys(
+        list(seed_organizations)
+        + sorted(counts, key=lambda org: (-counts[org], org.lower()))
+    ))
     results = []
     for org in candidates:
         if org.lower() in configured_lower:
