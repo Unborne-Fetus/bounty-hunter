@@ -402,9 +402,9 @@ class Workbench(Dashboard):
         ]
         for i, (name, callback) in enumerate(buttons):
             self._button(action_row, name, callback, accent=name in {"Approve attempt", "Approve bundle"}).grid(
-                row=i // 5, column=i % 5, padx=(0, 8), pady=(0, 8), sticky="ew"
+                row=i // 3, column=i % 3, padx=(0, 8), pady=(0, 8), sticky="ew"
             )
-        for col in range(5):
+        for col in range(3):
             action_row.columnconfigure(col, weight=1)
 
         followup = tk.Frame(self.content, bg=BG)
@@ -705,17 +705,30 @@ class Workbench(Dashboard):
             10, MUTED, wraplength=780, justify="left"
         ).pack(anchor="w", pady=(20, 18))
         self._button(
-            self.content, "Check official GitHub releases for updates", self.open_releases
+            self.content, "Check for Windows app updates", self.check_updates
         ).pack(anchor="w")
         self._label(
             self.content,
-            "Updates are opened for review; Bounty Hunter does not silently replace its own executable.",
+            "Verified updates open GitHub for review. Bounty Hunter never silently replaces its executable.",
             9, MUTED
         ).pack(anchor="w", pady=(10, 0))
 
-    @staticmethod
-    def open_releases():
-        webbrowser.open("https://github.com/Unborne-Fetus/bounty-hunter/releases")
+    def check_updates(self):
+        from .desktop_updates import check_for_updates
+        self._run_async(
+            "Checking official GitHub releases",
+            check_for_updates,
+            on_success=self._update_check_complete
+        )
+
+    def _update_check_complete(self, result):
+        url = result["url"]
+        if result["available"]:
+            offer = f'{result["message"]} Open the official release download page?'
+        else:
+            offer = f'{result["message"]} Open the GitHub downloads page?'
+        if messagebox.askyesno("Bounty Hunter updates", offer, parent=self):
+            webbrowser.open(url)
 
 
 def main():
