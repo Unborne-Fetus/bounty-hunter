@@ -66,9 +66,9 @@ def run_scan(settings: dict) -> dict:
             calibration_factor=calibration["probability_factor"],
         )
         write_json(records, str(paths["opportunities"]),
-                   source_health=args.source_health, calibration=calibration)
+                   source_health=getattr(args, "source_health", []), calibration=calibration)
         write_markdown(records, str(paths["reports"] / "opportunities.md"),
-                       source_health=args.source_health, calibration=calibration)
+                       source_health=getattr(args, "source_health", []), calibration=calibration)
         scan_id = history.record_scan(records)
     finally:
         history.close()
@@ -76,7 +76,7 @@ def run_scan(settings: dict) -> dict:
         "count": len(records),
         "eligible": sum(1 for item in records if item["score"]["eligible"]),
         "scan_id": scan_id,
-        "source_health": args.source_health,
+        "source_health": getattr(args, "source_health", []),
         "report_path": str(paths["opportunities"]),
     }
 
