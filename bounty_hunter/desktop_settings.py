@@ -88,11 +88,42 @@ def normalize_settings(payload: dict) -> dict:
     return values
 
 
+def _legacy_settings() -> dict:
+    """Import non-secret settings from the original point-and-click desktop.
+
+    The first experimental GUI used app-settings.json, whereas the unified
+    application uses desktop.json. A Windows update should not silently lose
+    source switches or the user's original repository/database location.
+    """
+    old_path = settings_path().with_name("app-settings.json")
+    if not old_path.is_file():
+        return {}
+    try:
+        old = json.loads(old_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(old, dict):
+        return {}
+    migrated = {}
+    if isinstance(old.get("workspace"), str):
+        migrated["workspace"] = old["workspace"]
+    if isinstance(old.get("country"), str):
+        migrated["boss_payout_country"] = old["country"]
+    if isinstance(old.get("algora_orgs"), str):
+        migrated["algora_organizations"] = old["algora_orgs"]
+    disabled = old.get("disabled_sources")
+    if isinstance(disabled, list):
+        migrated["sources"] = {
+            source: source not in disabled for source in SOURCES
+        }
+    return migrated
+
+
 def load_settings() -> dict:
     path = settings_path()
     if path.is_file():
         return normalize_settings(json.loads(path.read_text(encoding="utf-8")))
-    return normalize_settings({})
+    return normalize_settings(_legacy_settings())
 
 
 def save_settings(payload: dict) -> dict:
