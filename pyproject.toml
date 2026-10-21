@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bounty-hunter"
-version = "0.1.0"
+version = "0.2.0"
 description = "Supervised discovery and scoring for AI-agent coding bounties"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,6 +21,9 @@ bounty-hunter-submission = "bounty_hunter.submission:main"
 bounty-hunter-monitor = "bounty_hunter.monitor:main"
 bounty-hunter-algora-discovery = "bounty_hunter.algora_discovery:main"
 bounty-hunter-public-export = "bounty_hunter.public_export:main"
+
+[project.gui-scripts]
+bounty-hunter-desktop = "bounty_hunter.desktop:main"
 
 [tool.setuptools.packages.find]
 include = ["bounty_hunter*"]
