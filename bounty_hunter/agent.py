@@ -11,6 +11,30 @@ from typing import Callable, Dict, Optional
 from .history import History
 
 
+def _safe_host_path_environment() -> Dict[str, str]:
+    """Minimal host executable environment, not an inherited secrets dump."""
+    environment = {"PATH": os.environ.get("PATH", "")}
+    if os.name == "nt":
+        for name in ("SystemRoot", "WINDIR", "TEMP", "TMP", "PATHEXT"):
+            if name in os.environ:
+                environment[name] = os.environ[name]
+    return environment
+
+
+def _safe_codex_environment() -> Dict[str, str]:
+    """Codex auth home works on Windows without forwarding token variables."""
+    environment = _safe_host_path_environment()
+    home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or str(Path.home())
+    environment["HOME"] = home
+    environment["CODEX_HOME"] = os.environ.get("CODEX_HOME") or str(Path(home) / ".codex")
+    if os.name == "nt":
+        for name in ("USERPROFILE", "APPDATA", "LOCALAPPDATA", "COMSPEC"):
+            if name in os.environ:
+                environment[name] = os.environ[name]
+    return environment
+
+
+
 @dataclass(frozen=True)
 class AgentResult:
     returncode: int
@@ -100,14 +124,7 @@ Issue:
             command.extend(["--model", model])
         command.append(prompt)
 
-        environment: Dict[str, str] = {
-            "HOME": os.environ.get("HOME", ""),
-            "PATH": os.environ.get("PATH", ""),
-            "CODEX_HOME": os.environ.get(
-                "CODEX_HOME",
-                str(Path(os.environ.get("HOME", "")) / ".codex"),
-            ),
-        }
+        environment = _safe_codex_environment()
         result = self.process_runner(
             command,
             check=False,
@@ -450,14 +467,7 @@ Repository files:
                 if model:
                     command.extend(["--model", model])
                 command.append("-")
-                environment: Dict[str, str] = {
-                    "HOME": os.environ.get("HOME", ""),
-                    "PATH": os.environ.get("PATH", ""),
-                    "CODEX_HOME": os.environ.get(
-                        "CODEX_HOME",
-                        str(Path(os.environ.get("HOME", "")) / ".codex"),
-                    ),
-                }
+                environment = _safe_codex_environment()
                 result = self.process_runner(
                     command,
                     input=current_prompt,
@@ -517,7 +527,7 @@ Repository files:
                     capture_output=True,
                     text=True,
                     timeout=60,
-                    env={"PATH": os.environ.get("PATH", "")},
+                    env=_safe_host_path_environment(),
                 )
                 if check.returncode == 0:
                     break
@@ -554,7 +564,7 @@ Repository files:
             capture_output=True,
             text=True,
             timeout=60,
-            env={"PATH": os.environ.get("PATH", "")},
+            env=_safe_host_path_environment(),
         )
         self.history.add_artifact(
             attempt_id,
