@@ -275,9 +275,6 @@ class Workbench(Dashboard):
         self._button(top, "Find Algora boards", self.start_audit).pack(
             side="left", padx=(10, 0)
         )
-        self._button(top, "Source diagnostics", self.show_source_health).pack(
-            side="left", padx=(10, 0)
-        )
         self._button(top, "Setup", self.open_setup).pack(side="right")
 
         report = self.scan_report
@@ -287,22 +284,25 @@ class Workbench(Dashboard):
         unverified_count = counts["pending"]
         generated = str(report.get("generated_at") or "Never")
         filter_row = tk.Frame(self.content, bg=BG)
-        filter_row.pack(fill="x", pady=(1, 8))
-        self._label(
-            filter_row,
-            f'{counts["total"]} discovered  •  {eligible_count} actionable  •  '
-            f'{unverified_count} pending verification  •  Last scan: {generated}',
-            10, MUTED,
-        ).pack(side="left")
+        filter_row.pack(fill="x", pady=(0, 7))
         self._button(
             filter_row,
             "Show all bounties" if self._actionable_only else "Show actionable only",
             self.toggle_actionable_filter,
-        ).pack(side="right", padx=(8, 0))
+        ).pack(side="left")
         if self._actionable_only and counts["total"] and not eligible_count:
             self._button(
                 filter_row, "Why 0 matches?", self.show_actionable_diagnostics
-            ).pack(side="right", padx=(8, 0))
+            ).pack(side="left", padx=(8, 0))
+        self._button(
+            filter_row, "Source diagnostics", self.show_source_health
+        ).pack(side="right")
+        self._label(
+            self.content,
+            f'{counts["total"]} discovered  •  {eligible_count} actionable  •  '
+            f'{unverified_count} pending verification  •  Last scan: {generated}',
+            10, MUTED,
+        ).pack(anchor="w", pady=(0, 8))
 
         cols = ("source", "reward", "decision", "github", "title", "value")
         self.scan_tree = ttk.Treeview(
