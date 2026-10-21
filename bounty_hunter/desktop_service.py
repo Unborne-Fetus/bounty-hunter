@@ -53,6 +53,7 @@ def run_scan(settings: dict, progress=None, extra_health=None) -> dict:
     args.history_db = str(paths["db"])
     opportunities = cli._collect(args)
     if extra_health:
+        args.source_health = list(getattr(args, "source_health", []) or [])
         args.source_health.extend(extra_health)
     history = History(args.history_db)
     try:
