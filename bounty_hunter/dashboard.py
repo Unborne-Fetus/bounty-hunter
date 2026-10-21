@@ -62,7 +62,7 @@ class Dashboard(tk.Tk):
             settings.get("database"),
         )
         self.data = None
-        self.page = "scan" if not load_settings().get("workspace") else "overview"
+        self.page = "overview"
         self.desktop = DesktopPages(self)
         self.provider = tk.StringVar(value="algora")
         self.message = tk.StringVar(value="No history database selected")
