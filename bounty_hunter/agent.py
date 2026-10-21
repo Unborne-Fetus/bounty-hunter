@@ -513,7 +513,7 @@ Repository files:
             )
             try:
                 validate_patch(patch)
-                patch_path.write_text(patch, encoding="utf-8")
+                patch_path.write_bytes(patch.encode("utf-8"))
                 check = subprocess.run(
                     [
                         "git",

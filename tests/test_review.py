@@ -87,6 +87,7 @@ class ReviewBundleTests(unittest.TestCase):
         )
         self.assertTrue(Path(result["path"], "manifest.json").exists())
         self.assertTrue(Path(result["path"], "changes.patch").exists())
+        self.assertNotIn(b"\r\n", Path(result["path"], "changes.patch").read_bytes())
         patch = Path(result["path"], "changes.patch").read_text(
             encoding="utf-8"
         )

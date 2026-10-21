@@ -166,7 +166,8 @@ def create_review_bundle(
     baseline_stderr_path = output / "baseline.stderr.txt"
     manifest_path = output / "manifest.json"
 
-    patch_path.write_text(diff, encoding="utf-8")
+    # Git patches and their approved hashes must use identical bytes on Windows.
+    patch_path.write_bytes(diff.encode("utf-8"))
     stdout_path.write_text(_bounded_log(verification_stdout), encoding="utf-8")
     stderr_path.write_text(_bounded_log(verification_stderr), encoding="utf-8")
     baseline_stdout_path.write_text(
