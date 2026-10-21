@@ -13,6 +13,8 @@ from tkinter import filedialog, messagebox, ttk
 
 from .earnings import PROVIDERS, default_database, load_dashboard, provider_info
 from .history import History
+from .desktop_pages import DesktopPages
+from .desktop_core import load_settings
 
 BG = "#101827"
 PANEL = "#1c293b"
@@ -40,7 +42,7 @@ def _settings_path():
 class Dashboard(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Bounty Hunter — Earnings")
+        self.title("Bounty Hunter — Windows")
         self.configure(bg=BG)
         self.geometry("1120x740")
         self.minsize(850, 610)
@@ -60,7 +62,8 @@ class Dashboard(tk.Tk):
             settings.get("database"),
         )
         self.data = None
-        self.page = "overview"
+        self.page = "scan" if not load_settings().get("workspace") else "overview"
+        self.desktop = DesktopPages(self)
         self.provider = tk.StringVar(value="algora")
         self.message = tk.StringVar(value="No history database selected")
         self._make_shell()
@@ -104,7 +107,9 @@ class Dashboard(tk.Tk):
         self._label(side, "BOUNTY", 20, ACCENT, True).pack(anchor="w", padx=22, pady=(30, 0))
         self._label(side, "HUNTER", 20, TEXT, True).pack(anchor="w", padx=22, pady=(0, 36))
         self.nav = {}
-        for page, name in [("overview", "Overview"), ("payouts", "Payouts / Withdraw"),
+        for page, name in [("scan", "Bounty Scanner"), ("setup", "Setup"),
+                           ("ai", "AI Workflow"), ("overview", "Overview"),
+                           ("payouts", "Payouts / Withdraw"),
                            ("activity", "Record Activity")]:
             button = self._button(side, name, lambda p=page: self.navigate(p))
             button.pack(fill="x", padx=12, pady=5)
@@ -183,6 +188,9 @@ class Dashboard(tk.Tk):
             "overview": "Earnings overview",
             "payouts": "Payouts & withdrawals",
             "activity": "Record payout or work time",
+            "scan": "Find coding bounties",
+            "setup": "First-run setup",
+            "ai": "Supervised AI workflow",
         }[page])
         for name, button in self.nav.items():
             button.config(bg=RAISED if name == page else "#141f30", fg=ACCENT if name == page else TEXT)
@@ -192,8 +200,14 @@ class Dashboard(tk.Tk):
             self._overview()
         elif page == "payouts":
             self._payouts()
-        else:
+        elif page == "activity":
             self._activity()
+        elif page == "scan":
+            self.desktop.scan(self.content)
+        elif page == "setup":
+            self.desktop.setup(self.content)
+        elif page == "ai":
+            self.desktop.workflow(self.content)
 
     def _card(self, parent, title, value, detail, color=TEXT):
         card = tk.Frame(parent, bg=PANEL, padx=18, pady=14)
@@ -439,6 +453,15 @@ class Dashboard(tk.Tk):
 
 
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--bounty-worker":
+        name = sys.argv[2]
+        from . import cli, workflow, preflight, attempt, submission
+        modules = {"scan": cli, "workflow": workflow, "preflight": preflight,
+                   "attempt": attempt, "submission": submission}
+        if name not in modules:
+            raise SystemExit("Unsupported worker")
+        sys.argv = [name] + sys.argv[3:]
+        raise SystemExit(modules[name].main())
     app = Dashboard()
     app.mainloop()
 
