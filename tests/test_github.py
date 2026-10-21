@@ -2,8 +2,9 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError
+from unittest.mock import patch
 
-from bounty_hunter.github import GitHubClient, enrich_opportunity
+from bounty_hunter.github import GitHubClient, enrich_opportunity, resolve_github_token
 from bounty_hunter.models import Opportunity
 
 
@@ -385,6 +386,38 @@ class GitHubEnrichmentTests(unittest.TestCase):
         )
         enrich_opportunity(opportunity, GitHubClient(transport=transport))
         self.assertTrue(opportunity.security_sensitive)
+
+
+class GithubAuthReuseTests(unittest.TestCase):
+    def test_explicit_environment_token_precedes_cli(self):
+        with patch("bounty_hunter.github.shutil.which") as locate:
+            with patch.dict("os.environ", {"GH_BOUNTY_TOKEN": "explicit-test-token"}):
+                self.assertEqual(
+                    resolve_github_token("GH_BOUNTY_TOKEN"), "explicit-test-token"
+                )
+            locate.assert_not_called()
+
+    def test_reuses_cli_login_without_storing_or_printing_token(self):
+        result = type("Completed", (), {
+            "returncode": 0, "stdout": "github_pat_test12345678901234567890\\n",
+        })()
+        with patch("bounty_hunter.github.shutil.which", return_value="gh"):
+            with patch("bounty_hunter.github.subprocess.run", return_value=result) as run:
+                with patch.dict("os.environ", {}, clear=True):
+                    self.assertEqual(
+                        resolve_github_token("GH_BOUNTY_TOKEN"),
+                        "github_pat_test12345678901234567890",
+                    )
+                self.assertEqual(
+                    run.call_args.args[0], ["gh", "auth", "token"]
+                )
+                self.assertTrue(run.call_args.kwargs["capture_output"])
+
+    def test_missing_cli_login_falls_back_to_anonymous(self):
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("bounty_hunter.github.shutil.which", return_value=None):
+                self.assertIsNone(resolve_github_token("GH_BOUNTY_TOKEN"))
+
 
 
 if __name__ == "__main__":
