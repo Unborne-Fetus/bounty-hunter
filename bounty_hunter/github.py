@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import shutil
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
@@ -77,6 +79,35 @@ AI_CONTRIBUTION_RISK_RE = re.compile(
     r"\b(?:not accepted|not allowed|prohibited|banned|will be closed|will not be reviewed)\b",
     re.IGNORECASE | re.DOTALL,
 )
+
+
+def resolve_github_token(env_name: str = "GITHUB_TOKEN") -> Optional[str]:
+    """Reuse an already-authorized GitHub CLI login for public read requests.
+
+    Explicit environment configuration wins. Never persist or print a token;
+    a missing, failing, or slow gh executable falls back to anonymous access.
+    """
+    configured = os.environ.get(env_name)
+    if configured:
+        return configured
+    executable = shutil.which("gh")
+    if not executable:
+        return None
+    try:
+        result = subprocess.run(
+            [executable, "auth", "token"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode:
+        return None
+    candidate = result.stdout.strip()
+    if len(candidate) < 15 or len(candidate) > 512:
+        return None
+    if not candidate.isascii() or any(ch.isspace() for ch in candidate):
+        return None
+    return candidate
 
 
 class GitHubClient:
