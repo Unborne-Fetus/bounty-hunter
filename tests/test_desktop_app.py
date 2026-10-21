@@ -241,6 +241,33 @@ class DesktopAppTests(unittest.TestCase):
         self.assertTrue(any(row["source"] == "algora_auto_discovery" and
                             row["status"] == "fresh" for row in report["source_health"]))
 
+    def test_algora_board_hints_still_run_if_github_search_fails(self):
+        from bounty_hunter.desktop_service import run_algora_audit
+        settings = normalize_settings({
+            **self.settings,
+            "sources": {"algora": True, "bountypay": False, "boss": False,
+                        "opire": False, "taskbounty": False},
+        })
+        observed = []
+
+        def audit(counts, board_client, **options):
+            observed.extend(options["seed_organizations"])
+            self.assertEqual(counts, {})
+            return [
+                {"organization": "projectdiscovery", "status": "fresh",
+                 "promotion": "review_for_trusted_list",
+                 "open_board_rows": 1}
+            ]
+
+        with patch("bounty_hunter.algora_discovery.search_candidate_items",
+                   side_effect=RuntimeError("GitHub search unavailable")):
+            with patch("bounty_hunter.algora_discovery.audit_candidates",
+                       side_effect=audit):
+                result = run_algora_audit(settings)
+        self.assertEqual(result["github_search_status"], "error")
+        self.assertIn("projectdiscovery", observed)
+        self.assertEqual(result["review_candidates"], ["projectdiscovery"])
+
     def test_actionable_scan_skips_recent_board_audit(self):
         from datetime import datetime, timezone
         settings = normalize_settings({
