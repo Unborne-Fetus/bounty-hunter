@@ -19,7 +19,7 @@ from tkinter import filedialog, messagebox, ttk
 from .dashboard import Dashboard, BG, PANEL, RAISED, TEXT, MUTED, ACCENT, WARNING, FONT, _money
 from .desktop_dialogs import ReviewDialog, SetupDialog
 from .desktop_settings import load_settings, normalize_settings, save_settings, settings_path, workspace_paths
-from .desktop_service import read_report, run_algora_audit, run_scan
+from .desktop_service import read_report, run_algora_audit, run_scan, recheck_github_opportunity
 from .desktop_workflow import (
     queue_opportunity, review_attempt, approve_attempt, approve_review_bundle,
     perform_step, publish_approved, bundle_preview, package_preview,
@@ -258,10 +258,11 @@ class Workbench(Dashboard):
         report = self.scan_report
         all_rows = report.get("opportunities") or []
         eligible_count = sum(bool(r.get("score", {}).get("eligible")) for r in all_rows)
+        unverified_count = sum(r.get("score", {}).get("decision") == "needs_verification" for r in all_rows)
         generated = str(report.get("generated_at") or "Never")
         self._label(
             self.content,
-            f"{len(all_rows)} discovered  •  {eligible_count} eligible  •  Last scan: {generated}",
+            f"{len(all_rows)} discovered  •  {eligible_count} eligible  •  {unverified_count} need verification  •  Last scan: {generated}",
             10, MUTED
         ).pack(anchor="w", pady=(2, 9))
 
@@ -272,13 +273,14 @@ class Workbench(Dashboard):
         )
         for key, text, size in [
             ("source", "Marketplace", 100), ("reward", "Reward", 90),
-            ("decision", "Decision", 105), ("title", "Issue", 340),
+            ("decision", "Decision", 145), ("title", "Issue", 340),
             ("value", "Est. value", 105),
         ]:
             self.scan_tree.heading(key, text=text)
             self.scan_tree.column(key, width=size, stretch=key == "title")
         self.scan_tree.tag_configure("eligible", foreground=ACCENT)
         self.scan_tree.tag_configure("rejected", foreground=MUTED)
+        self.scan_tree.tag_configure("unverified", foreground=WARNING)
         for i, record in enumerate(all_rows):
             opp = record["opportunity"]
             score = record["score"]
@@ -287,7 +289,9 @@ class Workbench(Dashboard):
                 values=(opp["source"], _money(opp["bounty_usd"]),
                         score["decision"], opp["title"][:130],
                         _money(score.get("expected_value_usd", 0))),
-                tags=("eligible" if score["eligible"] else "rejected",)
+                tags=("eligible" if score["eligible"] else (
+                     "unverified" if score.get("decision") == "needs_verification" else "rejected"
+                 ),)
             )
         self.scan_tree.pack(fill="both", expand=True)
         self.scan_tree.bind("<<TreeviewSelect>>", self._bounty_selected)
@@ -295,6 +299,9 @@ class Workbench(Dashboard):
         actions = tk.Frame(self.content, bg=BG)
         actions.pack(fill="x", pady=(10, 10))
         self._button(actions, "Queue selected eligible bounty", self.queue_selected, True).pack(side="left")
+        self._button(actions, "Recheck selected on GitHub", self.recheck_selected_github).pack(
+            side="left", padx=(10, 0)
+        )
         self._button(actions, "Open GitHub issue / provider", self.open_selected_issue).pack(
             side="left", padx=(10, 0)
         )
@@ -313,8 +320,8 @@ class Workbench(Dashboard):
             detail = ("No opportunities were returned. Open Source diagnostics to check marketplace health.\n"
                       "Use Find Algora boards to discover additional boards, then scan again.")
         elif not eligible_count:
-            detail = ("No bounties passed the current checks. Select a row to see its rejection reasons.\n"
-                      "Open Source diagnostics for provider errors or incomplete inventories.")
+            detail = ("No bounties passed the current checks. Select a row to see its reasons.\n"
+                      "Use Recheck selected on GitHub for missing evidence; Source diagnostics shows API issues.")
         else:
             detail = "Select a bounty to view eligibility, payout warnings and source evidence."
         self._set_detail(detail)
@@ -363,9 +370,15 @@ class Workbench(Dashboard):
             f'Repository: {opportunity.get("repository") or "not verified"}',
             f'Decision: {score.get("decision")}    Confidence: {score.get("confidence", 0):.0%}',
             "",
-            "Reasons:" if score.get("rejection_reasons") else "No blocking reasons recorded",
+            "Missing evidence / blockers:" if score.get("decision") == "needs_verification"
+            else ("Rejection reasons:" if score.get("rejection_reasons") else "No blocking reasons recorded"),
         ]
         lines.extend("• " + item for item in score.get("rejection_reasons") or [])
+        if score.get("decision") == "needs_verification":
+            lines.extend(["", "Not eligible yet. Select Recheck selected on GitHub to fetch current evidence."])
+        if opportunity.get("notes"):
+            lines.extend(["", "Scanner notes:"])
+            lines.extend("• " + str(item) for item in opportunity["notes"][-3:])
         if score.get("warnings"):
             lines.extend(["", "Warnings:"])
             lines.extend("• " + item for item in score["warnings"])
@@ -387,14 +400,39 @@ class Workbench(Dashboard):
         else:
             messagebox.showinfo("No link", "No verified source URL is available.", parent=self)
 
+    def recheck_selected_github(self):
+        try:
+            record = self._selected_bounty()
+            opp = record["opportunity"]
+            settings = dict(self.settings)
+            source = opp["source"]
+            source_id = str(opp["source_id"])
+            self._run_async(
+                "Rechecking GitHub evidence",
+                lambda: recheck_github_opportunity(settings, source, source_id),
+                on_success=self._recheck_complete,
+            )
+        except ValueError as error:
+            messagebox.showinfo("Select bounty", str(error), parent=self)
+
+    def _recheck_complete(self, result):
+        self._load_report()
+        self.navigate("bounties")
+        self.message.set(
+            "GitHub recheck: {} ({} requests). "
+            "Only verified eligible bounties can be queued.".format(
+                result["decision"], result["requests"]
+            )
+        )
+
     def queue_selected(self):
         try:
             record = self._selected_bounty()
             opp = record["opportunity"]
             if not record["score"]["eligible"]:
                 raise ValueError(
-                    "This bounty is rejected. See the exact reasons in the details panel. "
-                    "Bounty Hunter will not attempt ineligible work."
+                    "This bounty is not eligible yet. Check its missing evidence "
+                    "Bounty Hunter will not attempt unverified work."
                 )
             if not messagebox.askyesno(
                 "Queue bounty for review",
