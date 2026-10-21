@@ -46,13 +46,14 @@ class BossAdapterTests(unittest.TestCase):
         self.assertEqual(unknown.probability_valid, 0)
         self.assertEqual(unsupported.probability_valid, 0)
 
-    def test_sponsor_charge_after_merge_fails_closed(self):
+    def test_sponsor_charge_warns_without_replacing_evidence_checks(self):
         score = score_opportunity(normalize([ITEM], payout_country="US")[0])
         self.assertFalse(score.eligible)
+        self.assertEqual(score.decision, "needs_verification")
         self.assertEqual(score.probability_valid, 0)
         self.assertIn(
             "payout requires sponsor action after completion and is not guaranteed",
-            score.rejection_reasons,
+            score.warnings,
         )
 
     def test_zero_value_placeholder_is_not_a_bounty(self):

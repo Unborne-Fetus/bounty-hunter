@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from bounty_hunter.config import ScoringConfig
 from bounty_hunter.models import Opportunity
 from bounty_hunter.scoring import score_opportunity
 
@@ -45,6 +46,43 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(score.gate_rejection_count, 0)
         self.assertEqual(score.decision, "approve_for_human_review")
         self.assertGreater(score.expected_value_usd, 25)
+
+    def test_sponsor_payment_is_risk_adjusted_and_can_reach_review(self):
+        baseline = score_opportunity(strong_opportunity())
+        score = score_opportunity(strong_opportunity(payout_requires_sponsor_action=True))
+        self.assertTrue(score.eligible)
+        self.assertEqual(score.decision, "approve_for_human_review")
+        self.assertGreater(score.payout_probability, 0)
+        self.assertLess(score.payout_probability, baseline.payout_probability)
+        self.assertLess(score.expected_value_usd, baseline.expected_value_usd)
+        self.assertIn("payout requires sponsor action after completion and is not guaranteed",
+                      score.warnings)
+
+    def test_strict_payment_policy_remains_available(self):
+        score = score_opportunity(
+            strong_opportunity(payout_requires_sponsor_action=True),
+            ScoringConfig(require_guaranteed_payout=True),
+        )
+        self.assertEqual(score.decision, "reject")
+        self.assertEqual(score.payout_probability, 0)
+
+    def test_sponsor_payment_does_not_override_closed_or_withdrawn_bounties(self):
+        for fields in ({"issue_open": False}, {"status": "awarded"},
+                       {"evidence": {"bounty_withdrawal_signal": True}}):
+            with self.subTest(fields=fields):
+                score = score_opportunity(strong_opportunity(
+                    payout_requires_sponsor_action=True, **fields))
+                self.assertEqual(score.decision, "reject")
+                self.assertEqual(score.payout_probability, 0)
+
+    def test_missing_guidance_or_heuristic_clarity_needs_review(self):
+        for fields in ({"contribution_guide_found": False},
+                       {"acceptance_criteria_clear": False},
+                       {"evidence": {"opire_evidence_stale": True}}):
+            with self.subTest(fields=fields):
+                score = score_opportunity(strong_opportunity(**fields))
+                self.assertFalse(score.eligible)
+                self.assertEqual(score.decision, "needs_verification")
 
     def test_historical_calibration_changes_expected_value(self):
         opportunity = strong_opportunity()

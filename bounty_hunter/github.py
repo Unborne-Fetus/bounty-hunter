@@ -11,6 +11,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from .models import Opportunity, parse_datetime
+from .verification import is_test_path
 
 
 ISSUE_URL_RE = re.compile(
@@ -287,7 +288,7 @@ def _recent(value: Optional[str], days: int = 90) -> Optional[bool]:
 def _tree_signals(tree: Dict[str, Any]) -> Tuple[bool, bool]:
     paths = [item.get("path", "") for item in tree.get("tree", [])]
     return (
-        any(TEST_PATH_RE.search(path) for path in paths),
+        any(is_test_path(path) or TEST_PATH_RE.search(path) for path in paths),
         any(CONTRIBUTING_RE.search(path) for path in paths),
     )
 
@@ -501,8 +502,13 @@ def enrich_opportunity(
     )
     body = issue.get("body") or ""
     opportunity.acceptance_criteria_clear = (
-        len(body.strip()) >= 120
+        True if len(body.strip()) >= 120
         and any(term in body.lower() for term in CLARITY_TERMS)
+        else None
+    )
+    opportunity.evidence["acceptance_criteria_check"] = (
+        "structured_requirements_found" if opportunity.acceptance_criteria_clear
+        else "manual_review_required"
     )
     scope_hours, scope_signals = _estimate_agent_hours(
         opportunity.title, body, labels
@@ -523,6 +529,12 @@ def enrich_opportunity(
                 opportunity.contribution_guide_found,
             ) = _tree_signals(tree)
             opportunity.evidence["tree_truncated"] = bool(tree.get("truncated"))
+            # Absence from a partial tree is not evidence that a file is missing.
+            if tree.get("truncated"):
+                if not opportunity.has_test_suite:
+                    opportunity.has_test_suite = None
+                if not opportunity.contribution_guide_found:
+                    opportunity.contribution_guide_found = None
         except HTTPError as error:
             opportunity.notes.append(
                 f"Repository tree inspection failed with HTTP {error.code}."

@@ -111,8 +111,8 @@ def normalize(
                     "Discovered through Boss's public open-bounty API.",
                     "Boss documents that auto bounties charge the sponsor's card "
                     "only after issue closure; public inventory does not prove "
-                    "escrow or expose the bounty type, so the initial policy "
-                    "rejects these opportunities.",
+                    "escrow or expose the bounty type. Sponsor payment risk is "
+                    "included in screening estimates; payment is not guaranteed.",
                 ],
                 evidence={
                     "boss_evidence_stale": evidence_stale,

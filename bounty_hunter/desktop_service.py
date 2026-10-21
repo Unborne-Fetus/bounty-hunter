@@ -158,6 +158,7 @@ def run_actionable_scan(settings: dict, progress=None) -> dict:
             extra.append({
                 "source": "algora_auto_discovery", "status": "error",
                 "error_type": type(error).__name__,
+                "error": str(error)[:300],
                 "message": (
                     "Algora discovery failed. The scan still checks other enabled "
                     "sources and any previously verified boards that remain fresh."

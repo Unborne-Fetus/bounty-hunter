@@ -190,7 +190,7 @@ def normalize_html(html: str, evidence_stale: bool = False) -> List[Opportunity]
                 notes=[
                     "Discovered in Opire's public server-rendered rewards inventory.",
                     "Opire pending rewards require creator payment after resolution; "
-                    "the initial policy treats that counterparty risk as ineligible.",
+                    "that counterparty risk reduces estimated payout probability.",
                 ],
                 evidence={
                     "opire_evidence_stale": evidence_stale,

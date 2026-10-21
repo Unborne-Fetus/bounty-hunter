@@ -44,7 +44,7 @@ jobs:
       - name: Test desktop setup and scanner
         run: python -m unittest discover -s tests -p test_desktop_app.py -v
       - name: Test GitHub enrichment, scoring and actionable filtering
-        run: python -m unittest tests.test_cli tests.test_scoring tests.test_github tests.test_report tests.test_actionable -v
+        run: python -m unittest tests.test_cli tests.test_scoring tests.test_github tests.test_report tests.test_actionable tests.test_algora_discovery tests.test_boss tests.test_opire -v
       - name: Test readiness and workflow controls
         run: python -m unittest discover -s tests -p test_desktop_readiness.py -v
       - name: Test Windows execution and update controls

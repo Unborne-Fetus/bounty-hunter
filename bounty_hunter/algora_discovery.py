@@ -106,7 +106,7 @@ def audit_candidates(
             break
         record: Dict[str, Any] = {
             "organization": org,
-            "github_open_labeled_issues": counts[org],
+            "github_open_labeled_issues": counts.get(org, 0),
             "board_url": f"https://algora.io/{org}/bounties?status=open",
             "promotion": "not_verified",
         }

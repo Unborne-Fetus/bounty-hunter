@@ -95,7 +95,7 @@ class DesktopAppTests(unittest.TestCase):
         self.assertFalse(record["score"]["eligible"])
         self.assertFalse(workspace_paths(self.settings)["db"].exists())
 
-    def test_recheck_all_verifies_links_without_override_of_payment_gates(self):
+    def test_recheck_all_preserves_sponsor_warning_and_economic_checks(self):
         from bounty_hunter.models import Opportunity
         paths = workspace_paths(self.settings)
         paths["reports"].mkdir(parents=True, exist_ok=True)
@@ -164,7 +164,7 @@ class DesktopAppTests(unittest.TestCase):
         self.assertFalse(by_id["2"]["score"]["eligible"])
         self.assertIn(
             "payout requires sponsor action after completion and is not guaranteed",
-            by_id["2"]["score"]["rejection_reasons"],
+            by_id["2"]["score"]["warnings"],
         )
         self.assertEqual(
             by_id["3"]["opportunity"]["evidence"]["github_verification_status"],

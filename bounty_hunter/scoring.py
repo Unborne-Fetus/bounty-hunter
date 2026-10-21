@@ -155,9 +155,12 @@ def score_opportunity(
             "repository discussion indicates AI-assisted contributions create reputation risk"
         )
     if opportunity.payout_requires_sponsor_action is True:
-        reasons.append(
+        payment_warning = (
             "payout requires sponsor action after completion and is not guaranteed"
         )
+        warnings.append(payment_warning)
+        if config.require_guaranteed_payout:
+            reasons.append(payment_warning)
     if opportunity.evidence.get("payout_country_restrictions_apply"):
         if opportunity.payout_country_eligible is False:
             reasons.append("configured payout country is not supported")
@@ -217,12 +220,23 @@ def score_opportunity(
         unverified_reasons.add("an identifiable open-source license is required")
     if opportunity.has_test_suite is None:
         unverified_reasons.add("an existing test suite is required")
-    if opportunity.contribution_guide_found is None:
+    if opportunity.contribution_guide_found is not True:
         unverified_reasons.add("visible repository contribution guidance is required")
-    if opportunity.acceptance_criteria_clear is None:
+    if opportunity.acceptance_criteria_clear is not True:
         unverified_reasons.add("clear acceptance criteria are required")
-    if opportunity.evidence.get("github_evidence_stale"):
-        unverified_reasons.add("GitHub evidence is stale and requires refresh")
+    if (opportunity.evidence.get("payout_country_restrictions_apply")
+            and opportunity.payout_country_eligible is None):
+        unverified_reasons.add("payout-country eligibility must be confirmed")
+    for key, label in (
+        ("github", "GitHub"), ("algora", "Algora board"),
+        ("opire", "Opire"), ("taskbounty", "TaskBounty"),
+        ("taskbounty_detail", "TaskBounty detail"),
+        ("boss", "Boss"), ("bountypay", "BountyPay"),
+    ):
+        if opportunity.evidence.get(key + "_evidence_stale"):
+            unverified_reasons.add(label + " evidence is stale and requires refresh")
+    if opportunity.evidence.get("taskbounty_detail_stale"):
+        unverified_reasons.add("TaskBounty detail evidence is stale and requires refresh")
     confirmed_blockers = [
         reason for reason in reasons
         if reason not in unverified_reasons
@@ -253,13 +267,19 @@ def score_opportunity(
         or opportunity.evidence.get("reward_outlier")
         or opportunity.evidence.get("bounty_withdrawal_signal")
         or opportunity.evidence.get("ai_contribution_reputation_risk")
-        or opportunity.payout_requires_sponsor_action is True
+        or (config.require_guaranteed_payout
+            and opportunity.payout_requires_sponsor_action is True)
         or (
             opportunity.evidence.get("payout_country_restrictions_apply")
             and opportunity.payout_country_eligible is not True
         )
     ):
         valid = 0.0
+    # A sponsor's approval/payment step is uncertainty, not proof of nonpayment.
+    # This configurable haircut is a screening assumption, not observed odds.
+    if opportunity.payout_requires_sponsor_action is True:
+        valid *= max(0.0, min(1.0, config.sponsor_payment_probability_factor))
+        warnings.append("sponsor-payment probability adjustment is a model assumption")
     payout_probability = valid * verified * win_merge
 
     fee_rate = (

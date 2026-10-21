@@ -99,6 +99,7 @@ class AlgoraDiscoveryTests(unittest.TestCase):
         )
         self.assertEqual([item["organization"] for item in found],
                          ["projectdiscovery", "empty"])
+        self.assertEqual(found[0]["github_open_labeled_issues"], 0)
         self.assertEqual(found[0]["promotion"], "review_for_trusted_list")
         self.assertEqual(found[1]["promotion"], "do_not_promote")
         self.assertEqual(client.calls, ["projectdiscovery", "empty"])

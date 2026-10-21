@@ -59,7 +59,7 @@ class OpireAdapterTests(unittest.TestCase):
             {"available_reported": 290, "initial_page_count": 1},
         )
 
-    def test_creator_action_risk_is_fail_closed(self):
+    def test_creator_action_warns_without_replacing_evidence_checks(self):
         reward = {
             "id": "reward-1",
             "title": "Fix parser",
@@ -69,10 +69,11 @@ class OpireAdapterTests(unittest.TestCase):
         }
         score = score_opportunity(normalize_html(fixture_html([reward]))[0])
         self.assertFalse(score.eligible)
+        self.assertEqual(score.decision, "needs_verification")
         self.assertEqual(score.probability_valid, 0)
         self.assertIn(
             "payout requires sponsor action after completion and is not guaranteed",
-            score.rejection_reasons,
+            score.warnings,
         )
 
     def test_cache_falls_back_as_stale(self):

@@ -1,6 +1,6 @@
 # Bounty Hunter
 
-## All-in-one Windows desktop (v0.2.1)
+## All-in-one Windows desktop (v0.2.2)
 
 **The main Windows app now combines bounty scanning, supervised coding work,
 settings, earnings, and payout links.** No terminal is needed for regular use.
@@ -51,9 +51,12 @@ It does **not** automatically accept work, promise payment, or withdraw money.
    Source diagnostics reports missing issue links and API limits. If a
    provider never supplies a usable public GitHub issue link, inspect the
    provider listing; Bounty Hunter will not fabricate one. **Verifying a
-   repository does not override a separate payout or eligibility rejection:**
-   Opire and Boss public inventory may still be rejected where payment
-   requires sponsor action. Failed, stale, or rate-limited API requests
+   repository does not override a separate eligibility rejection:**
+   Sponsor-dependent payouts (including Opire and Boss) carry a visible warning
+   and a 0.85 multiplier on estimated payout validity, rather than automatic
+   rejection. This multiplier is an adjustable model assumption, not measured
+   payment history. All evidence and economic checks still apply.
+   Failed, stale, or rate-limited API requests
    cannot promote an opportunity to eligible.
 5. Use **Coding workspace** to review and approve a queued attempt, run isolated
    preflight, generate an AI patch, run before/after tests, review the immutable
@@ -211,8 +214,8 @@ partial when the server-rendered page is not the full inventory. Opire's
 [reward documentation](https://docs.opire.dev/rewards/introduction) says pending
 rewards are combined into checkout when claimed and each reward creator pays
 for their own reward. Because that is creator payment after resolution rather
-than public evidence of escrow, the initial policy records these opportunities
-but rejects them until payout assurance can be verified. The payment model and
+than public evidence of escrow, screening warns about sponsor payment risk
+and reduces estimated payout probability. The payment model and
 documentation URL are preserved in each opportunity's evidence. Implausible
 rewards above $10,000 are also marked as unverified outliers and skipped during
 GitHub enrichment.
@@ -224,8 +227,15 @@ two-letter residency code to evaluate that restriction; omission or an
 unsupported country fails closed. Boss also documents that an `auto` bounty
 charges the sponsor's card only after the issue is closed, while the public
 inventory does not expose bounty type or proof of escrow. Boss opportunities
-are therefore retained for discovery but receive zero payout probability under
-the initial policy, even when the country is supported.
+retain that payment-risk warning and receive the sponsor-payment probability
+adjustment. Supported payout country and all repository, issue, and economic
+checks are still required. Programmatic callers can retain strict rejection
+with `ScoringConfig(require_guaranteed_payout=True)`.
+
+Missing contribution guidance or unrecognized acceptance-criteria formatting
+requires verification rather than a conclusive rejection. These rows remain
+ineligible until reviewed evidence satisfies the checks. Closed, withdrawn,
+archived, or otherwise disqualified work still fails screening.
 
 BountyPay's public API is cached for six hours in
 `data/bountypay-cache.json`. The adapter distinguishes real Base mainnet

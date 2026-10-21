@@ -19,3 +19,5 @@ class ScoringConfig:
     human_hour_value_usd: float = 25.0
     revision_reserve_usd: float = 5.0
     risk_reserve_rate: float = 0.05
+    require_guaranteed_payout: bool = False
+    sponsor_payment_probability_factor: float = 0.85

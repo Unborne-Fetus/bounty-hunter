@@ -117,6 +117,34 @@ class GitHubEnrichmentTests(unittest.TestCase):
             )
         self.assertEqual(len(calls), 1)
 
+    def test_truncated_tree_and_unrecognized_body_remain_unknown(self):
+        def transport(url, _headers):
+            if url.endswith("/repos/acme/parser"):
+                return {"private": False, "default_branch": "main"}
+            if url.endswith("/issues/42"):
+                return {"state": "open", "body": "A concise request without template headings"}
+            if "/git/trees/main" in url:
+                return {"truncated": True, "tree": [{"path": "README.md"}]}
+            return []
+        opportunity = Opportunity(
+            source="manual", source_id="42", title="Fix parser",
+            source_url="https://example.test", bounty_usd=250, status="open",
+            issue_url="https://github.com/acme/parser/issues/42",
+        )
+        enrich_opportunity(opportunity, GitHubClient(transport=transport))
+        self.assertIsNone(opportunity.has_test_suite)
+        self.assertIsNone(opportunity.contribution_guide_found)
+        self.assertIsNone(opportunity.acceptance_criteria_clear)
+        self.assertEqual(opportunity.evidence["acceptance_criteria_check"],
+                         "manual_review_required")
+
+    def test_tree_detects_root_and_nested_test_files(self):
+        from bounty_hunter.github import _tree_signals
+        for path in ("test_parser.py", "src/parser.spec.ts", "lib/parser_test.py"):
+            with self.subTest(path=path):
+                self.assertEqual(_tree_signals({"tree": [{"path": path}]}),
+                                 (True, False))
+
     def test_enriches_repository_issue_and_competition_signals(self):
         def transport(url, _headers):
             if url.endswith("/repos/acme/parser"):
