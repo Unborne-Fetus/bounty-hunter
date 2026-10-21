@@ -19,7 +19,7 @@ from tkinter import filedialog, messagebox, ttk
 from .dashboard import Dashboard, BG, PANEL, RAISED, TEXT, MUTED, ACCENT, WARNING, FONT, _money
 from .desktop_dialogs import ReviewDialog, SetupDialog
 from .desktop_settings import load_settings, normalize_settings, save_settings, settings_path, workspace_paths
-from .desktop_service import read_report, run_algora_audit, run_scan, recheck_github_opportunity, recheck_all_github_opportunities
+from .desktop_service import read_report, run_algora_audit, run_scan, run_actionable_scan, recheck_github_opportunity, recheck_all_github_opportunities
 from .actionable import actionable_indices, actionability_summary, actionable_diagnostics, is_actionable
 from .desktop_workflow import (
     queue_opportunity, review_attempt, approve_attempt, approve_review_bundle,
@@ -213,10 +213,17 @@ class Workbench(Dashboard):
             self.after(200, self._poll_jobs)
 
     def find_actionable(self):
-        # A normal scan still evaluates every enabled marketplace; the
-        # strict filter affects only the visible result list.
+        # Find fresh, independently verified bounty boards before scanning.
+        # This is discovery only; the strict safety gates remain unchanged.
         self._actionable_only = True
-        self.start_scan()
+        settings = dict(self.settings)
+        self._next_auto_scan = time.monotonic() + settings["scan_interval_minutes"] * 60
+        progress = lambda message: self._jobs.put(("progress", "", message, None))
+        self._run_async(
+            "Finding actionable bounties",
+            lambda: run_actionable_scan(settings, progress=progress),
+            on_success=self._scan_complete,
+        )
 
     def toggle_actionable_filter(self):
         self._actionable_only = not self._actionable_only
@@ -226,7 +233,9 @@ class Workbench(Dashboard):
         records = self.scan_report.get("opportunities") or []
         self._preview_window(
             "Why no actionable bounties?",
-            actionable_diagnostics(records),
+            actionable_diagnostics(
+                records, self.scan_report.get("source_health") or []
+            ),
         )
 
     def start_scan(self):
@@ -368,7 +377,9 @@ class Workbench(Dashboard):
             detail = ("No opportunities were returned. Open Source diagnostics to check marketplace health.\n"
                       "Use Find Algora boards to discover additional boards, then scan again.")
         elif not eligible_count and self._actionable_only:
-            detail = actionable_diagnostics(all_rows)
+            detail = actionable_diagnostics(
+                all_rows, report.get("source_health") or []
+            )
         elif not eligible_count:
             detail = ("No bounties passed the current checks. Select a row to see its reasons.\n"
                       "Use Show actionable only for the strict view. Payment terms and other "
