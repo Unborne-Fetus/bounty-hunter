@@ -252,7 +252,10 @@ class DesktopAppTests(unittest.TestCase):
         paths["reports"].mkdir(parents=True, exist_ok=True)
         paths["algora_audit"].write_text(json.dumps({
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "candidates": [],
+            "candidates": [
+                {"organization": "acme", "status": "fresh",
+                 "promotion": "review_for_trusted_list", "open_board_rows": 2},
+            ],
         }), encoding="utf-8")
         with patch("bounty_hunter.desktop_service.run_algora_audit") as audit:
             with patch("bounty_hunter.desktop_service.cli._collect", return_value=[]):
@@ -260,6 +263,30 @@ class DesktopAppTests(unittest.TestCase):
             audit.assert_not_called()
         self.assertEqual(result["algora_auto_discovery"]["status"], "cached")
         self.assertTrue(_algora_discovery_is_recent(paths["algora_audit"]))
+
+    def test_recent_empty_algora_audit_forces_fresh_discovery(self):
+        from datetime import datetime, timezone
+        settings = normalize_settings({
+            **self.settings,
+            "sources": {"algora": True, "bountypay": False, "boss": False,
+                        "opire": False, "taskbounty": False},
+        })
+        paths = workspace_paths(settings)
+        paths["reports"].mkdir(parents=True, exist_ok=True)
+        paths["algora_audit"].write_text(json.dumps({
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "candidates": [],
+            "review_candidates": [],
+        }), encoding="utf-8")
+        self.assertFalse(_algora_discovery_is_recent(paths["algora_audit"]))
+        with patch("bounty_hunter.desktop_service.run_algora_audit",
+                   return_value={"candidates": [{"organization": "one"}],
+                                 "review_candidates": []}) as audit:
+            with patch("bounty_hunter.desktop_service.cli._collect", return_value=[]):
+                result = run_actionable_scan(settings)
+            audit.assert_called_once()
+        self.assertEqual(result["algora_auto_discovery"]["status"], "no_verified_boards")
+        self.assertEqual(result["algora_auto_discovery"]["verified_boards"], 0)
 
     def test_actionable_scan_marks_disabled_algora_instead_of_silent_omission(self):
         with patch("bounty_hunter.desktop_service.run_algora_audit") as audit:
