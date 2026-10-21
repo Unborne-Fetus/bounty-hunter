@@ -1,5 +1,56 @@
 # Bounty Hunter
 
+## All-in-one Windows desktop (v0.2.0)
+
+**The main Windows app now combines bounty scanning, supervised coding work,
+settings, earnings, and payout links.** No terminal is needed for regular use.
+It does **not** automatically accept work, promise payment, or withdraw money.
+
+### Install / launch
+
+1. Open [Windows Desktop App builds](https://github.com/Unborne-Fetus/bounty-hunter/actions/workflows/build-windows-dashboard.yml)
+   and select the latest **successful** workflow run on `main`.
+2. Under **Artifacts**, download **BountyHunter-Windows-Installer**, extract the
+   ZIP, and run `BountyHunter-Setup.exe`. This installs a per-user app with
+   a Start Menu shortcut. Alternatively download
+   **BountyHunter-Windows-Portable** to run `BountyHunter.exe` without installing.
+3. On first launch, choose a workspace for local history/reports, select
+   marketplace sources, optionally add Algora organizations, confirm your
+   Boss payout-residency country if applicable, and choose whether to scan
+   periodically while the program remains running. No API key is stored.
+4. Click **Scan now** to discover opportunities. Select a row to see the
+   reasons for acceptance or rejection, and queue an eligible bounty for
+   review. **Find Algora boards** can discover additional live, verified boards.
+5. Use **Coding workspace** to review and approve a queued attempt, run isolated
+   preflight, generate an AI patch, run before/after tests, review the immutable
+   bundle, explicitly approve the exact patch, prepare a local PR and separately
+   confirm **Publish PR**. Public publication can never run without confirmation.
+6. Use **Overview**, **Payouts / Withdraw** and **Record Activity** to inspect
+   self-recorded earnings and open payment providers. No bank/wallet integration
+   or withdrawal API is currently implemented.
+
+If you already have a clone with historical
+`data/bounty_hunter.db`, select that **repository folder** as the workspace
+so the app reuses your existing reports/history. Your installed program and
+data are separate: uninstalling preserves settings and earnings history.
+
+**Requirements:** Only the installer/portable EXE is needed for scanning and
+the earnings dashboard. Running approved *coding* attempts additionally
+requires installed and available Docker Desktop or Podman, Git, and authenticated
+Codex CLI; public PR publication also needs authenticated GitHub CLI (`gh`).
+The setup wizard indicates which commands are discoverable, but cannot
+automatically authenticate accounts or guarantee that an external provider
+accepts your work. Some platforms require identity/age/country eligibility.
+
+**Updates:** Under Settings, click **Check for Windows app updates**. The app
+checks only the official GitHub Releases source and, with confirmation, opens
+the release or the Actions downloads page. Upgrades currently require the
+user to download/run the newer installer; there is no silent self-updater.
+
+**Local launcher alternative:** With Python 3.9+ and a source checkout, pull
+`main` and double-click `START-DASHBOARD.bat`. The legacy
+`START-WINDOWS.bat` still runs the command-line scanner.
+
 [View the live, read-only telemetry dashboard](https://bounty-hunter-telemetry.vercel.app)
 
 Bounty Hunter is a validation-first system for discovering, ranking, and
