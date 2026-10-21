@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bounty_hunter.desktop_settings import normalize_settings, workspace_paths, load_settings, settings_path
-from bounty_hunter.desktop_service import scan_arguments, read_report, run_scan, recheck_github_opportunity, recheck_all_github_opportunities
+from bounty_hunter.desktop_service import scan_arguments, read_report, run_scan, run_actionable_scan, _algora_discovery_is_recent, recheck_github_opportunity, recheck_all_github_opportunities
 from bounty_hunter.desktop_workflow import queue_opportunity, review_attempt
 
 
@@ -198,6 +198,96 @@ class DesktopAppTests(unittest.TestCase):
         self.assertFalse(record["score"]["eligible"])
         self.assertEqual(record["score"]["probability_valid"], 0)
         self.assertTrue(record["opportunity"]["evidence"]["github_evidence_stale"])
+
+    def test_actionable_scan_discovers_trusted_boards_before_collection(self):
+        settings = normalize_settings({
+            **self.settings,
+            "sources": {"algora": True, "bountypay": True, "boss": True,
+                        "opire": True, "taskbounty": False},
+        })
+        paths = workspace_paths(settings)
+        seen = []
+
+        def discover(values):
+            seen.append("audit")
+            paths["reports"].mkdir(parents=True, exist_ok=True)
+            paths["algora_audit"].write_text(json.dumps({
+                "generated_at": "2030-01-01T00:00:00Z",
+                "candidates": [
+                    {"organization": "acme", "status": "fresh",
+                     "promotion": "review_for_trusted_list", "open_board_rows": 1},
+                ],
+            }), encoding="utf-8")
+            return {
+                "candidates": [{}],
+                "review_candidates": ["acme"],
+            }
+
+        def collect(args):
+            seen.append("scan")
+            self.assertFalse(args.no_algora)
+            self.assertEqual(args.algora_org, [])
+            self.assertTrue(paths["algora_audit"].exists())
+            args.source_health = [{"source": "boss", "status": "fresh", "opportunities": 0}]
+            return []
+
+        with patch("bounty_hunter.desktop_service.run_algora_audit", side_effect=discover):
+            with patch("bounty_hunter.desktop_service.cli._collect", side_effect=collect):
+                result = run_actionable_scan(settings)
+        self.assertEqual(seen, ["audit", "scan"])
+        self.assertEqual(result["count"], 0)
+        self.assertEqual(result["algora_auto_discovery"]["verified_boards"], 1)
+        report = read_report(settings)
+        self.assertTrue(any(row["source"] == "algora_auto_discovery" and
+                            row["status"] == "fresh" for row in report["source_health"]))
+
+    def test_actionable_scan_skips_recent_board_audit(self):
+        from datetime import datetime, timezone
+        settings = normalize_settings({
+            **self.settings,
+            "sources": {"algora": True, "bountypay": False, "boss": False,
+                        "opire": False, "taskbounty": False},
+        })
+        paths = workspace_paths(settings)
+        paths["reports"].mkdir(parents=True, exist_ok=True)
+        paths["algora_audit"].write_text(json.dumps({
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "candidates": [],
+        }), encoding="utf-8")
+        with patch("bounty_hunter.desktop_service.run_algora_audit") as audit:
+            with patch("bounty_hunter.desktop_service.cli._collect", return_value=[]):
+                result = run_actionable_scan(settings)
+            audit.assert_not_called()
+        self.assertEqual(result["algora_auto_discovery"]["status"], "cached")
+        self.assertTrue(_algora_discovery_is_recent(paths["algora_audit"]))
+
+    def test_actionable_scan_marks_disabled_algora_instead_of_silent_omission(self):
+        with patch("bounty_hunter.desktop_service.run_algora_audit") as audit:
+            with patch("bounty_hunter.desktop_service.cli._collect", return_value=[]):
+                result = run_actionable_scan(self.settings)
+            audit.assert_not_called()
+        self.assertEqual(result["algora_auto_discovery"]["status"], "disabled")
+        report = read_report(self.settings)
+        self.assertTrue(any(
+            row["source"] == "algora_auto_discovery" and row["status"] == "disabled"
+            for row in report["source_health"]
+        ))
+
+    def test_actionable_scan_records_discovery_failure_but_still_scans(self):
+        settings = normalize_settings({
+            **self.settings,
+            "sources": {"algora": True, "bountypay": True, "boss": False,
+                        "opire": False, "taskbounty": False},
+        })
+        with patch("bounty_hunter.desktop_service.run_algora_audit",
+                   side_effect=RuntimeError("GitHub is unavailable")):
+            with patch("bounty_hunter.desktop_service.cli._collect", return_value=[]):
+                result = run_actionable_scan(settings)
+        self.assertEqual(result["algora_auto_discovery"]["status"], "error")
+        self.assertEqual(result["count"], 0)
+        report = read_report(settings)
+        self.assertTrue(any(row["source"] == "algora_auto_discovery" and
+                            row["status"] == "error" for row in report["source_health"]))
 
     def test_settings_are_local_and_source_preferences_applied(self):
         args = scan_arguments(self.settings)
