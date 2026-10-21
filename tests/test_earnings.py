@@ -76,7 +76,7 @@ class EarningsDashboardTests(unittest.TestCase):
         self.assertEqual(view["recorded_usd"], 100)
 
     def test_default_database_finds_existing_workspace(self):
-        self.assertEqual(default_database([self.path.parent.parent]), str(self.path))
+        self.assertTrue(Path(default_database([self.path.parent.parent])).samefile(self.path))
         self.assertIsNone(default_database([self.path.parent / "missing"]))
 
     def test_provider_links_are_allowlisted(self):
