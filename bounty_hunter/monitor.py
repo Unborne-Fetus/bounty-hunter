@@ -1,5 +1,11 @@
 import argparse
-import fcntl
+import sys
+
+try:
+    import fcntl
+except ImportError:  # Windows has msvcrt instead.
+    fcntl = None
+    import msvcrt
 import json
 import os
 import re
@@ -16,6 +22,27 @@ MAX_LOG_BYTES = 64 * 1024
 SCAN_RESULT_RE = re.compile(
     r"evaluated\s+(\d+)\s+opportunities;\s+(\d+)\s+eligible;"
 )
+
+
+
+def _lock_for_single_monitor(handle) -> None:
+    """Take a non-blocking per-workspace monitor lock on Unix or Windows."""
+    if fcntl is not None:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError("another bounty monitor already holds the lock") from error
+        return
+    # msvcrt byte-range locks require an existing byte and position at offset 0.
+    handle.seek(0, os.SEEK_END)
+    if handle.tell() == 0:
+        handle.write(" ")
+        handle.flush()
+    handle.seek(0)
+    try:
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError as error:
+        raise RuntimeError("another bounty monitor already holds the lock") from error
 
 
 def _bounded(value: str) -> str:
@@ -148,10 +175,7 @@ def run_monitor(
     failures = 0
     last_discovery_success_at: Optional[datetime] = None
     with lock_file.open("a+", encoding="utf-8") as lock:
-        try:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise RuntimeError("another bounty monitor already holds the lock") from error
+        _lock_for_single_monitor(lock)
         while True:
             started = now()
             discovery_status = {
@@ -267,13 +291,22 @@ def main() -> int:
         return run_monitor(
             project_root=args.project_root,
             interval_seconds=args.interval_hours * 60 * 60,
+            command=(
+                (sys.executable, "-m", "bounty_hunter.cli")
+                if os.name == "nt"
+                else ("sh", "scripts/daily_scan.sh")
+            ),
             once=args.once,
             status_path=args.status_path,
             lock_path=args.lock_path,
             discovery_command=(
                 None
                 if args.no_board_discovery
-                else ("sh", "scripts/weekly_algora_discovery.sh")
+                else (
+                    (sys.executable, "-m", "bounty_hunter.algora_discovery")
+                    if os.name == "nt"
+                    else ("sh", "scripts/weekly_algora_discovery.sh")
+                )
             ),
             discovery_interval_seconds=max(
                 3600.0, args.discovery_interval_hours * 60 * 60
