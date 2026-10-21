@@ -24,11 +24,20 @@ It does **not** automatically accept work, promise payment, or withdraw money.
    A decision of **needs_verification** means GitHub or repository evidence
    is missing, not that the bounty was conclusively rejected. Select that
    row and click **Recheck selected on GitHub** to refresh its issue and repo
-   evidence directly. Source diagnostics now counts missing issue links and
-   unverifiable opportunities. If a provider never supplies a usable public
-   GitHub issue link, inspect the provider listing; Bounty Hunter will not
-   fabricate one. Failed or rate-limited API requests cannot promote an
-   opportunity to eligible.
+   evidence directly, or use **Recheck all on GitHub** to refresh every saved
+   listing with a usable issue link within the GitHub API request limit. The
+   app shows verified, missing-link, failed, and deferred counts and checks
+   deferred issues first on the next pass. Existing authenticated `gh`
+   logins are reused for public read requests, without storing or printing
+   the token. The display's **Evidence coverage** number counts known
+   scoring signals; it does not measure success odds or guarantee payment.
+   Source diagnostics reports missing issue links and API limits. If a
+   provider never supplies a usable public GitHub issue link, inspect the
+   provider listing; Bounty Hunter will not fabricate one. **Verifying a
+   repository does not override a separate payout or eligibility rejection:**
+   Opire and Boss public inventory may still be rejected where payment
+   requires sponsor action. Failed, stale, or rate-limited API requests
+   cannot promote an opportunity to eligible.
 5. Use **Coding workspace** to review and approve a queued attempt, run isolated
    preflight, generate an AI patch, run before/after tests, review the immutable
    bundle, explicitly approve the exact patch, prepare a local PR and separately
