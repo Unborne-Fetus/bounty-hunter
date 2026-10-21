@@ -251,9 +251,12 @@ def recheck_all_github_opportunities(settings: dict, progress=None) -> dict:
                 "Verification requires a real public issue URL."
             )
 
-    budget = 45
+    token = resolve_github_token(settings["github_token_env"])
+    # Authenticated GitHub APIs allow more checks; anonymous requests must
+    # remain conservative to avoid exhausting the shared hourly rate limit.
+    budget = 150 if token else 45
     client = GitHubClient(
-        token=resolve_github_token(settings["github_token_env"]),
+        token=token,
         timeout_seconds=settings["timeout_seconds"],
         cache_path=str(paths["root"] / "data" / "github-cache.json"),
         cache_ttl_seconds=0,
