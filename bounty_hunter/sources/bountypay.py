@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from ..models import Opportunity
@@ -19,6 +19,11 @@ TOKEN_DECIMALS = {"USDC": 6, "MUSD": 18}
 
 
 def fetch_inventory(timeout_seconds: int = 20) -> list:
+    """Fetch open bounties; distinguish provider HTTP failures from local errors.
+
+    urllib's HTTPError is also a URLError. Do not retry an HTTP 500 using
+    another transport: it is a server response, not a TLS fallback condition.
+    """
     request = Request(
         API_URL,
         headers={"Accept": "application/json", "User-Agent": "bounty-hunter/0.1"},
@@ -26,7 +31,15 @@ def fetch_inventory(timeout_seconds: int = 20) -> list:
     try:
         with urlopen(request, timeout=timeout_seconds) as response:
             payload = json.load(response)
-    except URLError:
+    except HTTPError as error:
+        category = "server error" if 500 <= error.code < 600 else "HTTP error"
+        raise RuntimeError(
+            f"BountyPay API GET failed: HTTP {error.code} ({category}). "
+            "The provider endpoint did not return an open-bounty inventory. "
+            "Other bounty sources can still be scanned."
+        ) from error
+    except URLError as error:
+        # Preserve the existing curl fallback for Windows TLS/network differences.
         curl = shutil.which("curl")
         if not curl:
             raise
@@ -38,13 +51,30 @@ def fetch_inventory(timeout_seconds: int = 20) -> list:
                 str(timeout_seconds),
                 "--user-agent",
                 "bounty-hunter/0.1",
+                "--write-out",
+                "\\nBH_HTTP_STATUS:%{http_code}",
                 API_URL,
             ],
-            check=True,
+            check=False,
             capture_output=True,
             timeout=timeout_seconds + 5,
         )
-        payload = json.loads(result.stdout.decode("utf-8"))
+        body, separator, status_text = result.stdout.decode(
+            "utf-8", errors="replace"
+        ).rpartition("\nBH_HTTP_STATUS:")
+        status = status_text.strip() if separator else None
+        if result.returncode:
+            if result.returncode == 22 and status and status.isdigit() and int(status) >= 400:
+                raise RuntimeError(
+                    f"BountyPay API GET failed: HTTP {status} "
+                    f"(curl exit 22). Other bounty sources can still be scanned."
+                ) from error
+            raise RuntimeError(
+                f"BountyPay API GET transport failed (curl exit "
+                f"{result.returncode}); the provider's HTTP status could not "
+                "be confirmed."
+            ) from error
+        payload = json.loads(body if separator else result.stdout.decode("utf-8"))
     if not isinstance(payload, list):
         raise ValueError("BountyPay open-bounty response is not a list")
     return payload
