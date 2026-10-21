@@ -84,6 +84,31 @@ class ActionableFilterTests(unittest.TestCase):
         self.assertIn("bountypay: fresh", diagnosis)
         self.assertIn("0 actionable bounties", diagnosis)
 
+    def test_diagnostics_show_actual_bountypay_error_and_empty_boards(self):
+        records = [
+            sample("boss", "one", "reject", False,
+                   "payout requires sponsor action after completion and is not guaranteed")
+        ]
+        health = [
+            {"source": "bountypay", "status": "error",
+             "error": "BountyPay API GET failed: HTTP 500 (server error)."},
+            {"source": "algora_auto_discovery", "status": "no_verified_boards",
+             "verified_boards": 0,
+             "message": "No fresh Algora boards with parseable open bounties were found."},
+        ]
+        detail = actionable_diagnostics(records, health)
+        self.assertIn("HTTP 500", detail)
+        self.assertIn("no_verified_boards", detail)
+        self.assertIn("Verified public boards: 0", detail)
+
+    def test_empty_result_still_shows_source_failures(self):
+        text = actionable_diagnostics([], [
+            {"source": "bountypay", "status": "error",
+             "error": "Provider temporarily unavailable"}
+        ])
+        self.assertIn("No marketplace listings", text)
+        self.assertIn("Provider temporarily unavailable", text)
+
     def test_no_inventory_is_not_misreported_as_rejection(self):
         self.assertEqual(actionability_summary([])["total"], 0)
         self.assertIn("No marketplace listings were discovered", actionable_diagnostics([]))
