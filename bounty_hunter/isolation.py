@@ -14,6 +14,19 @@ PUBLIC_GITHUB_RE = re.compile(
 )
 
 
+def _host_cli_environment() -> dict:
+    """Minimal host environment for Docker/Podman, including Windows runtime keys."""
+    environment = {
+        "PATH": os.environ.get("PATH", ""),
+        "HOME": os.environ.get("HOME") or os.environ.get("USERPROFILE", ""),
+    }
+    if os.name == "nt":
+        for key in ("SystemRoot", "WINDIR", "TEMP", "TMP", "USERPROFILE", "PATHEXT"):
+            if key in os.environ:
+                environment[key] = os.environ[key]
+    return environment
+
+
 class IsolationUnavailable(RuntimeError):
     pass
 
@@ -373,10 +386,7 @@ class IsolatedRunner:
             capture_output=True,
             text=True,
             timeout=limits.timeout_seconds,
-            env={
-                "PATH": os.environ.get("PATH", ""),
-                "HOME": os.environ.get("HOME", ""),
-            },
+            env=_host_cli_environment(),
         )
 
     def clone_baseline(
@@ -408,10 +418,7 @@ class IsolatedRunner:
             capture_output=True,
             text=True,
             timeout=limits.timeout_seconds,
-            env={
-                "PATH": os.environ.get("PATH", ""),
-                "HOME": os.environ.get("HOME", ""),
-            },
+            env=_host_cli_environment(),
         )
 
     def run_command(
@@ -437,10 +444,7 @@ class IsolatedRunner:
             dependency_path,
             dependency_stack,
         )
-        environment = {
-            "PATH": os.environ.get("PATH", ""),
-            "HOME": os.environ.get("HOME", ""),
-        }
+        environment = _host_cli_environment()
         return self.process_runner(
             isolated,
             check=False,
@@ -484,10 +488,7 @@ class IsolatedRunner:
             command,
             limits,
         )
-        environment = {
-            "PATH": os.environ.get("PATH", ""),
-            "HOME": os.environ.get("HOME", ""),
-        }
+        environment = _host_cli_environment()
         return self.process_runner(
             isolated,
             check=False,
