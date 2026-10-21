@@ -476,12 +476,12 @@ def run_algora_audit(settings: dict) -> dict:
         cache_ttl_seconds=24 * 60 * 60,
         minimum_request_interval_seconds=2,
     )
-    found = search_candidate_items(github, 3)
+    found = search_candidate_items(github, 6)
     counts = candidate_org_counts(found.get("items") or [])
     candidates = audit_candidates(
         counts, client,
         configured=settings["algora_organizations"],
-        maximum_candidates=12, timeout_seconds=settings["timeout_seconds"],
+        maximum_candidates=18, timeout_seconds=settings["timeout_seconds"],
     )
     report = {
         "schema_version": 1,
