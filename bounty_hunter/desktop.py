@@ -61,6 +61,9 @@ class Workbench(Dashboard):
             self.nav[name].pack(fill="x", padx=12, pady=5)
 
     def navigate(self, page):
+        # Preserve compatibility with the separate built-in dashboard pages
+        # used by older and newer Windows launcher builds.
+        page = {"scan": "bounties", "setup": "settings", "ai": "work"}.get(page, page)
         if page in {"overview", "payouts", "activity"}:
             return super().navigate(page)
         self.page = page
