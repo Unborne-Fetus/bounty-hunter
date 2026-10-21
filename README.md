@@ -552,3 +552,57 @@ as near misses.
    testable bounty clears the expected-value threshold.
 5. Record actual model cost, compute cost, review time, acceptance result, and
    payout before tuning the scoring model.
+
+
+## Windows earnings dashboard
+
+The repo includes a desktop **Windows earnings dashboard**, built with
+Python's standard-library Tkinter GUI and packaged as `BountyHunter.exe`.
+It reads your existing local Bounty Hunter history database; it does **not**
+fetch a bank balance, custody funds, or submit withdrawals.
+
+**Quick start:**
+
+1. On Windows, pull `main` in GitHub Desktop.
+2. Double-click `START-DASHBOARD.bat` (requires Python 3.9+).
+3. Or download the `BountyHunter-Windows` artifact from
+   [Windows Earnings Dashboard actions](https://github.com/Unborne-Fetus/bounty-hunter/actions/workflows/build-windows-dashboard.yml),
+   unzip and run `BountyHunter.exe`. The EXE does not require Python.
+4. If the dashboard does not find the DB, click **Choose database** and
+   select `data/bounty_hunter.db` from your cloned repository. The
+   selected path is saved in `%APPDATA%\\BountyHunter\\dashboard.json`.
+5. `START-WINDOWS.bat` still runs the original bounty *scanner*.
+
+**What the amounts mean:**
+
+- **Recorded payouts:** USD payout amounts explicitly recorded in the local
+  ledger after a bounty is merged. They are **self-reported**, not independently
+  verified deposits, and no marketplace account sync is implied.
+- **Gross hourly rate:** recorded payouts divided by logged human work hours.
+- **Net hourly rate:** (recorded payouts minus recorded agent and compute costs)
+  divided by logged human hours. This does not subtract a value for your time,
+  taxes, fees not recorded in the ledger, or unrecorded expenses.
+- **Merged, unconfirmed:** remaining advertised value of merged bounties that
+  have not been recorded as paid; *not counted as earnings*. It is a tentative
+  figure and may never be paid. Other open/queued offers are excluded.
+- Without logged hours, hourly rates display `—`, not a made-up rate.
+
+To update accounting, use **Record Activity** in the desktop app to add
+positive **Hours worked** entries to any attempt or to add a **Payout actually
+received** entry to an attempt whose state is `merged` or `paid`.
+Both require an audit note. For CLI users, these go through the existing
+`bounty_hunter.workflow record-event` command and share the same DB.
+Only enter a payout after confirming receipt yourself; the GUI cannot
+validate a deposit.
+
+**Payouts / Withdraw:** Select a marketplace (Algora, BountyPay, Boss,
+Opire, or TaskBounty) and click **Open provider to review payout**.
+This opens a known marketplace website for you to follow its own supported
+payout/withdrawal process. Bounty Hunter cannot transfer funds itself,
+does not ask for banking or wallet secrets, and does not imply that every
+provider offers a cash-out button. Verify applicable age, country,
+identity, and payment requirements with the provider.
+
+A Windows build runs on each relevant `main` commit and can also be launched
+manually from GitHub Actions. Windows builds and accounting tests run in
+GitHub Actions; this GUI has not been interactively user-tested on your PC.
