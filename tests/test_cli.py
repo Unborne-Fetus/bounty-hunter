@@ -101,7 +101,7 @@ class HistoricalFallbackTests(unittest.TestCase):
             score.rejection_reasons,
         )
 
-    def test_github_enrichment_skips_conclusive_source_rejections(self):
+    def test_github_enrichment_checks_linked_issues_without_weakening_payout_gates(self):
         base = {
             "source": "algora",
             "source_id": "one",
@@ -112,19 +112,22 @@ class HistoricalFallbackTests(unittest.TestCase):
             "issue_url": "https://github.com/acme/parser/issues/1",
         }
         self.assertTrue(_needs_github_enrichment(Opportunity(**base)))
-        self.assertFalse(
+        self.assertTrue(
             _needs_github_enrichment(Opportunity(**{**base, "active_attempts": 3}))
         )
-        self.assertFalse(
+        self.assertTrue(
             _needs_github_enrichment(Opportunity(**{**base, "bounty_usd": 20}))
         )
         self.assertFalse(
             _needs_github_enrichment(Opportunity(**{**base, "status": "awarded"}))
         )
-        self.assertFalse(
+        self.assertTrue(
             _needs_github_enrichment(
                 Opportunity(**{**base, "payout_requires_sponsor_action": True})
             )
+        )
+        self.assertFalse(
+            _needs_github_enrichment(Opportunity(**{**base, "issue_url": None}))
         )
 
     def test_github_priority_prefers_small_uncontested_bug(self):
