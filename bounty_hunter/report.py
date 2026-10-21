@@ -94,12 +94,13 @@ def write_markdown(
                     f"fetched {item.get('opportunities', 0)} of "
                     f"{item['available_reported']} reported opportunities"
                 )
-            elif name == "github":
+            elif name in {"github", "github_recheck_all", "github_selected_recheck"}:
                 detail = (
                     f"{item.get('attempted', 0)} attempted, "
                     f"{item.get('verified', 0)} verified, "
                     f"{item.get('unverified', 0)} unverified, "
                     f"{item.get('missing_issue_links', 0)} missing issue links, "
+                    f"{item.get('deferred_request_budget', 0)} deferred, "
                     f"{item.get('skipped', 0)} skipped, "
                     f"{item.get('requests', 0)} requests, "
                     f"{item.get('errors', 0)} errors"
@@ -153,9 +154,10 @@ def write_markdown(
                 f"contribution guidance "
                 f"{('yes' if item.get('contribution_guide_found') is True else ('no' if item.get('contribution_guide_found') is False else 'unknown'))}",
                 f"- Decision: `{score['decision']}`",
+                f"- GitHub verification: {item.get('evidence', {}).get('github_verification_status') or 'not checked'}",
+                f"- Evidence coverage (known scoring signals, not payout odds): {score['confidence']:.0%}",
                 f"- Primary gate blockers: "
                 f"{score.get('gate_rejection_count', len(score.get('rejection_reasons') or []))}",
-                f"- Confidence: {score['confidence']:.0%}",
                 f"- Estimated payout probability: "
                 f"{score.get('payout_probability', score['probability_valid'] * score['probability_verified'] * score['probability_win_merge']):.1%}",
                 f"- Expected value: ${score['expected_value_usd']:.2f}",
