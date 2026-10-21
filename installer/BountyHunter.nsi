@@ -6,7 +6,7 @@
 !define APPVERSION "0.2.0"
 
 Name "${APPNAME}"
-OutFile "dist\BountyHunter-Setup.exe"
+OutFile "..\dist\BountyHunter-Setup.exe"
 InstallDir "$LOCALAPPDATA\Programs\BountyHunter"
 InstallDirRegKey HKCU "Software\BountyHunter" "InstallDir"
 RequestExecutionLevel user
@@ -26,7 +26,7 @@ SetCompressor /SOLID lzma
 
 Section "Bounty Hunter Desktop" SEC_MAIN
     SetOutPath "$INSTDIR"
-    File "dist\BountyHunter.exe"
+    File "..\dist\BountyHunter.exe"
     WriteRegStr HKCU "Software\BountyHunter" "InstallDir" "$INSTDIR"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\BountyHunter" "DisplayName" "${APPNAME}"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\BountyHunter" "DisplayVersion" "${APPVERSION}"
