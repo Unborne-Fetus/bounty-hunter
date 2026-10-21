@@ -235,7 +235,12 @@ def recheck_all_github_opportunities(settings: dict, progress=None) -> dict:
     # record in the output. The shared client deduplicates repeated GitHub URLs.
     candidates = sorted(
         (opp for opp in opportunities if parse_issue_url(opp.issue_url)),
-        key=_github_priority, reverse=True,
+        key=lambda opp: (
+            opp.evidence.get("github_verification_status") != "verified",
+            not bool(opp.evidence.get("github_enriched_at")),
+            _github_priority(opp),
+        ),
+        reverse=True,
     )
     missing_links = len(opportunities) - len(candidates)
     for opportunity in opportunities:
