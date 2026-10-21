@@ -211,6 +211,167 @@ def recheck_github_opportunity(settings: dict, source: str, source_id: str) -> d
     }
 
 
+
+def recheck_all_github_opportunities(settings: dict, progress=None) -> dict:
+    """Verify every saved listing with a usable issue link, within an API budget.
+
+    Missing links and exhausted budgets are reported explicitly. No unknown,
+    stale, or failed verification is promoted to eligible, and payout rules
+    remain unchanged. Results are saved once after the whole batch.
+    """
+    from .github import GitHubClient, enrich_opportunity, parse_issue_url
+    from .models import Opportunity
+    from .cli import HISTORICAL_GITHUB_FIELDS, _github_priority
+
+    settings = normalize_settings(settings)
+    paths = workspace_paths(settings)
+    report = read_report(settings)
+    originals = report.get("opportunities") or []
+    if not originals:
+        raise ValueError("No saved bounties. Run Scan now before Recheck all.")
+
+    opportunities = [Opportunity.from_dict(r["opportunity"]) for r in originals]
+    # Preserve priority order for meaningful work, but retain every original
+    # record in the output. The shared client deduplicates repeated GitHub URLs.
+    candidates = sorted(
+        (opp for opp in opportunities if parse_issue_url(opp.issue_url)),
+        key=_github_priority, reverse=True,
+    )
+    missing_links = len(opportunities) - len(candidates)
+    for opportunity in opportunities:
+        if not parse_issue_url(opportunity.issue_url):
+            opportunity.evidence["github_verification_status"] = "missing_issue_link"
+            opportunity.notes.append(
+                "No usable GitHub issue link was supplied by this marketplace. "
+                "Verification requires a real public issue URL."
+            )
+
+    budget = 45
+    client = GitHubClient(
+        token=os.environ.get(settings["github_token_env"]),
+        timeout_seconds=settings["timeout_seconds"],
+        cache_path=str(paths["root"] / "data" / "github-cache.json"),
+        cache_ttl_seconds=0,
+        maximum_requests_per_run=budget,
+    )
+    attempted = verified = failures = not_found = deferred = 0
+    stopped = False
+    for index, opportunity in enumerate(candidates, 1):
+        if stopped or client.requests_made >= budget:
+            deferred += 1
+            opportunity.evidence["github_verification_status"] = "request_budget"
+            opportunity.evidence["github_evidence_stale"] = True
+            opportunity.notes.append(
+                "GitHub recheck deferred: API budget or rate-limit cooldown. "
+                "Run Recheck all later or configure a GitHub token."
+            )
+            continue
+        if progress:
+            progress(f"Verifying GitHub issues {index}/{len(candidates)}")
+        attempted += 1
+        # Remove only evidence from prior GitHub enrichment; never erase
+        # marketplace payment or age-eligibility restrictions.
+        for field in HISTORICAL_GITHUB_FIELDS:
+            setattr(opportunity, field, None)
+        for key in (
+            "github_error", "github_enriched_at", "github_not_found",
+            "github_evidence_stale", "github_enrichment_skipped",
+            "github_verification_status", "github_issue_updated_at",
+            "github_repo_pushed_at", "github_repo_created_at",
+            "bounty_withdrawal_signal", "bounty_withdrawal_provenance",
+            "ai_contribution_reputation_risk", "ai_contribution_risk_provenance",
+            "tree_truncated",
+        ):
+            opportunity.evidence.pop(key, None)
+        try:
+            enrich_opportunity(opportunity, client)
+        except Exception as error:
+            opportunity.evidence["github_error"] = "unexpected"
+            opportunity.notes.append(
+                f"GitHub recheck failed ({type(error).__name__}); evidence remains unverified."
+            )
+
+        if opportunity.evidence.get("github_error"):
+            failures += 1
+            opportunity.evidence["github_verification_status"] = "api_error"
+            opportunity.evidence["github_evidence_stale"] = True
+            if getattr(client, "rate_limited_until", None):
+                stopped = True
+        elif opportunity.evidence.get("github_not_found"):
+            not_found += 1
+            opportunity.evidence["github_verification_status"] = "not_found"
+        elif opportunity.evidence.get("github_enriched_at"):
+            verified += 1
+            opportunity.evidence["github_verification_status"] = "verified"
+        else:
+            failures += 1
+            opportunity.evidence["github_verification_status"] = "incomplete"
+            opportunity.evidence["github_evidence_stale"] = True
+
+    calibration = report.get("calibration") or {}
+    defaults = ScoringConfig()
+    config = replace(
+        defaults,
+        default_execution_cost_usd=calibration.get(
+            "default_execution_cost_usd", defaults.default_execution_cost_usd
+        ),
+        default_human_hours=calibration.get(
+            "default_human_hours", defaults.default_human_hours
+        ),
+    )
+    records = ranked_records(
+        opportunities,
+        config=config,
+        calibration_factor=calibration.get("probability_factor", 1.0),
+    )
+    health = [
+        row for row in (report.get("source_health") or [])
+        if row.get("source") not in {"github_selected_recheck", "github_recheck_all"}
+    ]
+    health.append({
+        "source": "github_recheck_all",
+        "status": "partial" if failures or deferred or missing_links else "fresh",
+        "opportunities": len(opportunities),
+        "attempted": attempted,
+        "verified": verified,
+        "not_found": not_found,
+        "errors": failures,
+        "missing_issue_links": missing_links,
+        "deferred_request_budget": deferred,
+        "requests": client.requests_made,
+        "request_budget": budget,
+        "rate_limited_until": (
+            client.rate_limited_until.isoformat()
+            if getattr(client, "rate_limited_until", None) else None
+        ),
+    })
+    paths["reports"].mkdir(parents=True, exist_ok=True)
+    write_json(
+        records, str(paths["opportunities"]),
+        source_health=health, calibration=calibration,
+    )
+    write_markdown(
+        records, str(paths["reports"] / "opportunities.md"),
+        source_health=health, calibration=calibration,
+    )
+    history = History(str(paths["db"]))
+    try:
+        history.record_scan(records)
+    finally:
+        history.close()
+    return {
+        "total": len(opportunities),
+        "attempted": attempted,
+        "verified": verified,
+        "not_found": not_found,
+        "failed": failures,
+        "missing_issue_links": missing_links,
+        "deferred": deferred,
+        "requests": client.requests_made,
+        "eligible": sum(bool(r["score"]["eligible"]) for r in records),
+    }
+
+
 def run_algora_audit(settings: dict) -> dict:
     """Use public GitHub evidence to discover boards; results remain untrusted hints."""
     from .algora_discovery import (
