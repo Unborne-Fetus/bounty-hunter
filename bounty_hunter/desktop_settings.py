@@ -120,10 +120,29 @@ def _legacy_settings() -> dict:
 
 
 def load_settings() -> dict:
+    """Recover gracefully if a prior version left unusable local settings.
+
+    Preserve a diagnostic copy rather than repeatedly crashing on every
+    double-click. Missing/corrupt settings return safe defaults and open
+    the first-run wizard the next time the desktop starts.
+    """
     path = settings_path()
     if path.is_file():
-        return normalize_settings(json.loads(path.read_text(encoding="utf-8")))
-    return normalize_settings(_legacy_settings())
+        try:
+            return normalize_settings(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError, TypeError):
+            import datetime
+            backup = path.with_name(
+                "desktop.invalid-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".json"
+            )
+            try:
+                path.replace(backup)
+            except OSError:
+                pass
+    try:
+        return normalize_settings(_legacy_settings())
+    except (ValueError, TypeError):
+        return normalize_settings({})
 
 
 def save_settings(payload: dict) -> dict:
