@@ -147,6 +147,45 @@ class ScoringTests(unittest.TestCase):
         )
         self.assertEqual(score.probability_valid, 0)
 
+    def test_missing_github_evidence_is_pending_and_not_eligible(self):
+        score = score_opportunity(
+            strong_opportunity(
+                public_repository=None,
+                issue_open=None,
+                repository_stars=None,
+                repository_created_at=None,
+                repository_license=None,
+                has_test_suite=None,
+                contribution_guide_found=None,
+                acceptance_criteria_clear=None,
+            )
+        )
+        self.assertEqual(score.decision, "needs_verification")
+        self.assertFalse(score.eligible)
+        self.assertEqual(score.probability_valid, 0)
+        self.assertEqual(score.priority_score, 0)
+
+    def test_confirmed_rejection_never_becomes_pending(self):
+        score = score_opportunity(
+            strong_opportunity(
+                public_repository=None,
+                issue_open=None,
+                repository_stars=None,
+                status="awarded",
+            )
+        )
+        self.assertEqual(score.decision, "reject")
+        self.assertFalse(score.eligible)
+
+    def test_known_missing_license_is_a_rejection(self):
+        score = score_opportunity(
+            strong_opportunity(
+                repository_license=None,
+                evidence={"github_enriched_at": "2030-01-01T00:00:00Z"},
+            )
+        )
+        self.assertEqual(score.decision, "reject")
+
     def test_security_sensitive_issue_is_rejected(self):
         score = score_opportunity(strong_opportunity(security_sensitive=True))
         self.assertFalse(score.eligible)
