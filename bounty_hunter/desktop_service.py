@@ -127,7 +127,7 @@ def recheck_github_opportunity(settings: dict, source: str, source_id: str) -> d
     for key in (
         "github_error", "github_enriched_at", "github_not_found",
         "github_evidence_stale", "github_enrichment_skipped",
-        "github_issue_updated_at", "github_repo_pushed_at",
+        "github_verification_status", "github_issue_updated_at", "github_repo_pushed_at",
         "github_repo_created_at", "bounty_withdrawal_signal",
         "bounty_withdrawal_provenance", "ai_contribution_reputation_risk",
         "ai_contribution_risk_provenance", "tree_truncated",
@@ -156,6 +156,9 @@ def recheck_github_opportunity(settings: dict, source: str, source_id: str) -> d
         and not opportunity.evidence.get("github_not_found")
     ):
         raise RuntimeError("GitHub could not provide fresh verification.")
+    opportunity.evidence["github_verification_status"] = (
+        "not_found" if opportunity.evidence.get("github_not_found") else "verified"
+    )
     updated = []
     for item in report["opportunities"]:
         prior = item["opportunity"]
