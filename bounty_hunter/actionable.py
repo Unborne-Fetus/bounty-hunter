@@ -70,14 +70,14 @@ def actionable_diagnostics(records: Iterable[Dict[str, Any]]) -> str:
     result = actionability_summary(records)
     if not result["total"]:
         return (
-            "No marketplace listings were discovered in this scan.\\n"
+            "No marketplace listings were discovered in this scan.\n"
             "Check Source diagnostics, enable suitable sources in Setup, "
             "and try Find Algora boards. No eligibility decision was made."
         )
     if result["actionable"]:
         return (
             f'{result["actionable"]} of {result["total"]} discovered bounties '
-            "passed automated screening.\\n"
+            "passed automated screening.\n"
             "Review each requirement and marketplace eligibility, then run "
             "the isolated preflight before attempting any work. "
             "A listing is not a guaranteed payment."
@@ -108,4 +108,4 @@ def actionable_diagnostics(records: Iterable[Dict[str, Any]]) -> str:
         "review those specific scanner rules rather than marking unsafe "
         "bounties as eligible.",
     ])
-    return "\\n".join(lines)
+    return "\n".join(lines)
