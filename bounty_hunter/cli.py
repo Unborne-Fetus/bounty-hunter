@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
-from .github import GitHubClient, enrich_opportunity, parse_issue_url
+from .github import GitHubClient, enrich_opportunity, parse_issue_url, resolve_github_token
 from .config import ScoringConfig
 from .history import History
 from .models import Opportunity
@@ -398,7 +398,7 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
     if not args.no_github_enrichment:
         progress("Verifying repositories and open issues with GitHub")
         client = GitHubClient(
-            token=os.environ.get(args.github_token_env),
+            token=resolve_github_token(args.github_token_env),
             timeout_seconds=args.timeout,
             cache_path=args.github_cache,
             cache_ttl_seconds=int(args.github_cache_ttl_hours * 60 * 60),
