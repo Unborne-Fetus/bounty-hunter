@@ -343,9 +343,18 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
     ]
     org_clients.extend((org, discovery_client) for org in discovered_orgs)
     if not org_clients and not getattr(args, "no_algora", False):
+        has_audit = discovery_health.get("status") == "fresh"
         source_health.append({
-            "source": "algora", "status": "not_configured", "opportunities": 0,
-            "message": "Use Find Algora boards or add organizations in Setup.",
+            "source": "algora",
+            "status": "no_verified_boards" if has_audit else "not_configured",
+            "opportunities": 0,
+            "message": (
+                "Algora discovery completed but found no fresh public boards "
+                "with parseable open bounties. The scan cannot invent listings."
+                if has_audit else
+                "No Algora boards are configured or recently discovered. "
+                "Use Find actionable to refresh board discovery."
+            ),
         })
     for org, board_client in org_clients:
         progress(f"Fetching Algora board: {org}")
