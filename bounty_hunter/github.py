@@ -294,18 +294,18 @@ def _tree_signals(tree: Dict[str, Any]) -> Tuple[bool, bool]:
 
 
 def _competition(timeline: Iterable[Dict[str, Any]], issue_number: int) -> int:
-    pull_numbers = set()
+    # Cross-references include discussions and unrelated PR mentions. Only an
+    # explicit closing relationship establishes a competing solution.
+    pulls = set()
     for event in timeline:
         if event.get("event") != "cross-referenced":
             continue
         source_issue = event.get("source", {}).get("issue", {})
-        if (
-            "pull_request" in source_issue
-            and source_issue.get("state") == "open"
-            and source_issue.get("number") != issue_number
-        ):
-            pull_numbers.add(source_issue.get("number"))
-    return len(pull_numbers)
+        if ("pull_request" in source_issue
+                and source_issue.get("state") == "open"
+                and event.get("will_close_target") is True):
+            pulls.add((source_issue.get("repository_url"), source_issue.get("number")))
+    return len(pulls)
 
 
 def _active_claims(comments: Iterable[Dict[str, Any]]) -> int:
@@ -463,7 +463,12 @@ def enrich_opportunity(
             license_data.get("spdx_id") or license_data.get("key")
         )
     opportunity.language = repository.get("language")
-    opportunity.maintainer_active = _recent(repository.get("pushed_at"))
+    pushed_recently = _recent(repository.get("pushed_at"))
+    # A quiet repository is not evidence that its maintainer abandoned it.
+    opportunity.maintainer_active = True if pushed_recently else None
+    opportunity.evidence["maintainer_activity_basis"] = (
+        "recent_repository_push" if pushed_recently else "requires_confirmation"
+    )
 
     try:
         issue = client.get(f"{base}/issues/{number}")
@@ -546,6 +551,13 @@ def enrich_opportunity(
             accept="application/vnd.github+json",
         )
         opportunity.competing_prs = _competition(timeline, number)
+        opportunity.evidence["github_linked_pr_mentions"] = sum(
+            event.get("event") == "cross-referenced"
+            and "pull_request" in (event.get("source", {}).get("issue", {}))
+            and event.get("source", {}).get("issue", {}).get("state") == "open"
+            for event in timeline
+        )
+        opportunity.evidence["competition_basis"] = "explicit_closing_relationship"
     except HTTPError as error:
         opportunity.notes.append(
             f"Linked-PR inspection failed with HTTP {error.code}."
@@ -553,6 +565,13 @@ def enrich_opportunity(
 
     try:
         comments = client.get(f"{base}/issues/{number}/comments?per_page=100")
+        if any(
+            comment.get("author_association") in {"OWNER", "MEMBER", "COLLABORATOR"}
+            and _recent(comment.get("updated_at") or comment.get("created_at"))
+            for comment in comments
+        ):
+            opportunity.maintainer_active = True
+            opportunity.evidence["maintainer_activity_basis"] = "recent_maintainer_comment"
         explicit_claims = _active_claims(comments)
         if opportunity.active_attempts is None:
             opportunity.active_attempts = explicit_claims

@@ -1,6 +1,6 @@
 # Bounty Hunter
 
-## All-in-one Windows desktop (v0.2.2)
+## All-in-one Windows desktop (v0.2.3)
 
 **The main Windows app now combines bounty scanning, supervised coding work,
 settings, earnings, and payout links.** No terminal is needed for regular use.
@@ -232,10 +232,14 @@ adjustment. Supported payout country and all repository, issue, and economic
 checks are still required. Programmatic callers can retain strict rejection
 with `ScoringConfig(require_guaranteed_payout=True)`.
 
-Missing contribution guidance or unrecognized acceptance-criteria formatting
-requires verification rather than a conclusive rejection. These rows remain
-ineligible until reviewed evidence satisfies the checks. Closed, withdrawn,
-archived, or otherwise disqualified work still fails screening.
+Missing contribution guidance, low star counts, young repositories, and an old
+repository push are review warnings rather than proof that work is impossible.
+Unrecognized acceptance-criteria formatting still requires verification.
+A competing PR requires an explicit closing relationship, not just a mention.
+Closed, withdrawn, archived, or otherwise disqualified work still fails screening.
+Fresh Boss and Opire listings are revalidated before preflight and publication;
+this verifies that the reward is still listed, not that payment is guaranteed.
+Algora supports both legacy table rows and current public bounty cards.
 
 BountyPay's public API is cached for six hours in
 `data/bountypay-cache.json`. The adapter distinguishes real Base mainnet
@@ -633,12 +637,14 @@ expected hourly return =
 ```
 
 Unknown evidence lowers confidence and is shown in the report. It is never
-silently treated as a positive signal. The initial reputation-safe policy also
-requires a repository to be at least 180 days old, have at least 10 stars, have
-an identifiable open-source license, and expose `CONTRIBUTING`, a pull-request
-template, a code of conduct, or equivalent repository guidance. Preflight
-re-scores the immutable queued snapshot against the current policy so an older
-approval cannot bypass tightened safeguards.
+silently treated as a positive signal. An identifiable open-source license is
+required. Repository age below 180 days, fewer than 10 stars, and missing
+contribution guidance generate review warnings by default. Programmatic callers
+can restore those stricter gates with `require_established_repository=True` and
+`require_contribution_guide=True` in `ScoringConfig`. A quiet repository alone
+does not prove maintainer inactivity; recent maintainer comments can establish
+activity. Preflight re-scores the immutable queued snapshot against current
+policy so an older approval cannot bypass changed requirements.
 
 GitHub issue bodies and comments are also screened for explicit bounty
 withdrawal and repository-owner AI-contribution hostility. Strong signals are

@@ -6,6 +6,43 @@ from bounty_hunter.sources.algora import AlgoraBoardClient, normalize_html
 
 
 class AlgoraAdapterTests(unittest.TestCase):
+    def test_current_cards_are_isolated_and_pool_rewards(self):
+        def card(amount, number, title):
+            return (f'<div class="bg-white p-4"><div class="min-w-0 pl-2">'
+                    f'<div>${amount}</div><a class="group/issue inline-flex" '
+                    f'href="https://github.com/acme/parser/issues/{number}">'
+                    f'<p>parser#{number}</p><p>{title}</p></a></div></div>')
+        html = '<div class="divide-y">' + ''.join([
+            card('50', 42, 'Fix parser'), card('100', 42, 'Fix parser'),
+            card('200', 43, 'Fix another bug'),
+        ]) + '</div>'
+        rows = normalize_html('acme', html)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual([r.bounty_usd for r in rows], [150, 200])
+        self.assertEqual(rows[0].title, 'Fix parser')
+        self.assertEqual(rows[0].evidence['algora_pooled_count'], 2)
+        self.assertEqual(rows[1].issue_url, 'https://github.com/acme/parser/issues/43')
+
+    def test_card_does_not_borrow_money_from_another_element(self):
+        html = '''<div><div>$900</div><div class="min-w-0">
+          <a class="group/issue" href="https://github.com/acme/parser/issues/42">
+          parser#42 No amount in this card</a></div></div>'''
+        self.assertEqual(normalize_html('acme', html), [])
+
+    def test_navigation_links_do_not_become_bounties(self):
+        html = '''<div class="min-w-0">$100
+          <a href="https://github.com/acme/parser/issues/42">Issue</a></div>'''
+        self.assertEqual(normalize_html('acme', html), [])
+
+    def test_card_and_legacy_row_are_each_counted_once(self):
+        html = '''<table><tr><td>$50
+          <a class="group/issue" href="https://github.com/acme/parser/issues/42">
+          parser#42 Fix</a></td></tr></table>
+          <div class="min-w-0">$100
+          <a class="group/issue" href="https://github.com/acme/parser/issues/43">
+          parser#43 Another fix</a></div>'''
+        self.assertEqual([r.bounty_usd for r in normalize_html('acme', html)], [50, 100])
+
     def test_normalizes_liveview_bounty_row(self):
         html = """
         <table><tbody><tr>

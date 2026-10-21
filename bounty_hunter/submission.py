@@ -8,10 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Optional
 
-from .github import reputation_policy_signals
+from .github import reputation_policy_signals, _competition
 from .history import History
 from .review import review_bundle_sha256
-from .sources import algora, bountypay, taskbounty
+from .sources import algora, boss, bountypay, opire, taskbounty
 
 
 PACKAGE_FILES = ("manifest.json", "changes.patch", "PR_BODY.md")
@@ -57,6 +57,32 @@ def validate_marketplace_funding(
             "issue_url": current.issue_url,
             "bounty_usd": current.bounty_usd,
             "fresh": True,
+        }
+    if source in {"boss", "opire"}:
+        if source == "boss":
+            payload, stale = boss.BossClient(cache_ttl_seconds=0).fetch(timeout_seconds)
+            country = (opportunity.get("evidence") or {}).get("payout_country")
+            rows = boss.normalize(payload, payout_country=country)
+        else:
+            html, stale = opire.OpireClient(cache_ttl_seconds=0).fetch(timeout_seconds)
+            rows = opire.normalize_html(html)
+        if stale:
+            raise ValueError(f"publication refuses stale {source} listing evidence")
+        matches = [row for row in rows if row.source_id == source_id
+                   and row.issue_url == issue_url
+                   and row.status in {"open", "active", "funded", "published"}]
+        if not matches:
+            raise ValueError(f"approved bounty is no longer open on {source}")
+        current = matches[0]
+        if current.bounty_usd < approved_bounty:
+            raise ValueError(f"{source} reward is lower than the approved bounty")
+        if source == "boss" and current.payout_country_eligible is not True:
+            raise ValueError("Boss payout-country eligibility must be confirmed")
+        return {
+            "source": source, "source_id": current.source_id,
+            "issue_url": current.issue_url, "bounty_usd": current.bounty_usd,
+            "fresh": True, "payout_requires_sponsor_action": True,
+            "payment_assurance": current.evidence.get("payment_assurance"),
         }
     if source == "taskbounty":
         client = taskbounty.TaskBountyClient(cache_ttl_seconds=0)
@@ -194,15 +220,7 @@ def _github_publication_guard(
     )
     pages = timeline_payload if isinstance(timeline_payload, list) else []
     events = [event for page in pages for event in (page if isinstance(page, list) else [])]
-    competing = {
-        event.get("source", {}).get("issue", {}).get("html_url")
-        for event in events
-        if event.get("event") == "cross-referenced"
-        and event.get("source", {}).get("issue", {}).get("state") == "open"
-        and "pull_request" in event.get("source", {}).get("issue", {})
-    }
-    competing.discard(None)
-    if competing:
+    if _competition(events, issue_number):
         raise ValueError("an open competing pull request appeared after approval")
     return {
         "repository": repository,

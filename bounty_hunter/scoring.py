@@ -123,11 +123,13 @@ def score_opportunity(
     if opportunity.repository_stars is None:
         reasons.append("repository adoption evidence is required")
     elif opportunity.repository_stars < config.minimum_repository_stars:
-        reasons.append("repository is below the initial community-adoption threshold")
+        target = reasons if config.require_established_repository else warnings
+        target.append("repository is below the initial community-adoption threshold")
     if repository_age_days is None:
         reasons.append("repository age evidence is required")
     elif repository_age_days < config.minimum_repository_age_days:
-        reasons.append("repository is too new for the initial reputation-safe policy")
+        target = reasons if config.require_established_repository else warnings
+        target.append("repository is too new for the initial reputation-safe policy")
     if not opportunity.repository_license:
         reasons.append("an identifiable open-source license is required")
     if opportunity.evidence.get("github_evidence_stale"):
@@ -179,7 +181,10 @@ def score_opportunity(
     if opportunity.has_test_suite is not True:
         reasons.append("an existing test suite is required")
     if opportunity.contribution_guide_found is not True:
-        reasons.append("visible repository contribution guidance is required")
+        if config.require_contribution_guide:
+            reasons.append("visible repository contribution guidance is required")
+        else:
+            warnings.append("contribution guidance was not detected; review repository instructions before work")
     if opportunity.bounty_usd < config.minimum_bounty_usd:
         reasons.append("bounty is below the initial minimum")
     if opportunity.bounty_usd > config.maximum_bounty_usd:
@@ -246,6 +251,11 @@ def score_opportunity(
         opportunity, calibration_factor
     )
     warnings.extend(probability_warnings)
+    if opportunity.evidence.get("maintainer_activity_basis") == "requires_confirmation":
+        warnings.append("no recent repository push; maintainer availability needs confirmation")
+    mentions = opportunity.evidence.get("github_linked_pr_mentions", 0)
+    if mentions > (opportunity.competing_prs or 0):
+        warnings.append("linked PR mentions are not confirmed competing solutions; inspect during review")
     deadline_passed = bool(
         opportunity.deadline_at
         and opportunity.deadline_at <= datetime.now(timezone.utc)

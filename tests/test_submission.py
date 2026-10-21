@@ -26,6 +26,51 @@ def git(repository, *arguments):
     ).stdout.strip()
 
 
+class SponsorMarketplaceValidationTests(unittest.TestCase):
+    def listing(self, source, amount=250, issue="42", country="US"):
+        url = f"https://github.com/acme/parser/issues/{issue}"
+        if source == "boss":
+            payload = [{"gid": "bounty-1", "hId": "acme/parser#" + issue,
+                        "usd": amount, "url": url, "status": "open"}]
+            return payload
+        flight = 'x:{"initialRewards":' + json.dumps([{
+            "id": "bounty-1", "url": url,
+            "pendingPrice": {"value": int(amount * 100), "unit": "USD_CENT"},
+            "project": {"isPublic": True}}]) + '}'
+        return '<script>self.__next_f.push([1,' + json.dumps(flight) + '])</script>'
+
+    def check(self, source, payload, stale=False, country="US"):
+        target = ("bounty_hunter.submission.boss.BossClient.fetch" if source == "boss"
+                  else "bounty_hunter.submission.opire.OpireClient.fetch")
+        row = {"source": source, "source_id": "bounty-1", "bounty_usd": 250,
+               "issue_url": "https://github.com/acme/parser/issues/42",
+               "evidence": {"payout_country": country}}
+        with patch(target, return_value=(payload, stale)):
+            return validate_marketplace_funding(row)
+
+    def test_fresh_sponsor_listings_validate_without_claiming_escrow(self):
+        for source in ("boss", "opire"):
+            with self.subTest(source=source):
+                result = self.check(source, self.listing(source))
+                self.assertTrue(result["fresh"])
+                self.assertTrue(result["payout_requires_sponsor_action"])
+                self.assertIn("not_escrowed", result["payment_assurance"])
+
+    def test_stale_changed_or_reduced_rewards_are_refused(self):
+        for source in ("boss", "opire"):
+            for amount, issue, stale in ((250, "42", True), (200, "42", False),
+                                         (250, "43", False)):
+                with self.subTest(source=source, amount=amount, issue=issue, stale=stale):
+                    with self.assertRaises(ValueError):
+                        self.check(source, self.listing(source, amount, issue), stale)
+
+    def test_boss_still_requires_supported_payout_country(self):
+        for country in (None, "DO"):
+            with self.subTest(country=country):
+                with self.assertRaisesRegex(ValueError, "payout-country"):
+                    self.check("boss", self.listing("boss"), country=country)
+
+
 class SubmissionTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -366,6 +411,7 @@ class SubmissionTests(unittest.TestCase):
                     [
                         {
                             "event": "cross-referenced",
+                            "will_close_target": True,
                             "source": {
                                 "issue": {
                                     "state": "open",

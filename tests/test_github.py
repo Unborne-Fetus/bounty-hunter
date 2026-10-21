@@ -9,6 +9,38 @@ from bounty_hunter.models import Opportunity
 
 
 class GitHubEnrichmentTests(unittest.TestCase):
+    def test_mentions_are_not_competitors_and_cross_repo_number_is_not_ignored(self):
+        from bounty_hunter.github import _competition
+        def event(number, closes=None, state='open', repo='acme/other'):
+            return {'event': 'cross-referenced', 'will_close_target': closes,
+                    'source': {'issue': {'number': number, 'state': state,
+                    'repository_url': repo, 'pull_request': {}}}}
+        events = [event(9, False), event(10), event(11, True, 'closed'),
+                  event(42, True), event(42, True)]
+        self.assertEqual(_competition(events, 42), 1)
+
+    def test_old_push_does_not_prove_maintainer_inactivity(self):
+        comments = []
+        def transport(url, _headers):
+            if url.endswith('/repos/acme/parser'):
+                return {'private': False, 'pushed_at': '2001-01-01T00:00:00Z'}
+            if url.endswith('/issues/42'):
+                return {'state': 'open'}
+            return comments if '/comments?' in url else []
+        def enrich():
+            row = Opportunity(source='manual', source_id='42', title='Fix',
+                source_url='https://example.test', bounty_usd=250, status='open',
+                issue_url='https://github.com/acme/parser/issues/42')
+            return enrich_opportunity(row, GitHubClient(transport=transport))
+        first = enrich()
+        self.assertIsNone(first.maintainer_active)
+        self.assertEqual(first.evidence['maintainer_activity_basis'], 'requires_confirmation')
+        comments.append({'author_association': 'OWNER', 'body': 'Still accepting fixes',
+                         'updated_at': datetime.now(timezone.utc).isoformat()})
+        second = enrich()
+        self.assertTrue(second.maintainer_active)
+        self.assertEqual(second.evidence['maintainer_activity_basis'], 'recent_maintainer_comment')
+
     def test_terminal_not_found_response_is_cached(self):
         calls = []
 
@@ -183,6 +215,7 @@ class GitHubEnrichmentTests(unittest.TestCase):
                 return [
                     {
                         "event": "cross-referenced",
+                        "will_close_target": True,
                         "source": {
                             "issue": {
                                 "number": 81,

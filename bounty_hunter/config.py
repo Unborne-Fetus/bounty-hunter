@@ -21,3 +21,5 @@ class ScoringConfig:
     risk_reserve_rate: float = 0.05
     require_guaranteed_payout: bool = False
     sponsor_payment_probability_factor: float = 0.85
+    require_established_repository: bool = False
+    require_contribution_guide: bool = False

@@ -80,6 +80,8 @@ def _source_health_lines(source_health) -> List[str]:
         if name == "algora" and health.get("organization"):
             name += "/" + str(health["organization"])
         detail = str(health.get("message") or "")
+        if health.get("opportunities") is not None:
+            detail += f' Listings retrieved: {health["opportunities"]}.'
         if health.get("verified_boards") is not None:
             detail += f' Verified public boards: {health["verified_boards"]}.'
         if health.get("error"):
@@ -142,8 +144,8 @@ def actionable_diagnostics(
         "GitHub 'verified' means its linked issue was checked; it does not "
         "verify the payout, scope, tests, or platform participation and payout eligibility.",
         "Use Show all bounties to inspect rejects and Source diagnostics to "
-        "check missing inventories. If the same gates block everything, "
-        "review those specific scanner rules rather than marking unsafe "
-        "bounties as eligible.",
+        "check missing inventories. Verification-needed rows may also have "
+        "confirmed blockers; the row decision reflects both. A marketplace "
+        "can still advertise rewards for GitHub issues that are already closed.",
     ])
     return "\n".join(lines)

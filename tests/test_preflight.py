@@ -72,7 +72,8 @@ class PreflightTests(unittest.TestCase):
 
     def test_current_policy_recheck_refuses_old_eligible_snapshot(self):
         record = eligible_record()
-        record["opportunity"]["repository_stars"] = 0
+        record["opportunity"]["repository_license"] = None
+        record["opportunity"]["evidence"]["github_enriched_at"] = "2030-01-01T00:00:00Z"
         with self.assertRaisesRegex(ValueError, "current policy recheck"):
             _repository_url(record)
 

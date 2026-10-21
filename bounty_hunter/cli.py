@@ -104,8 +104,7 @@ def _github_priority(opportunity: Opportunity):
         for term in ("bug", "fix", "error", "test", "panic", "regression")
     )
     source_blocked = (
-        opportunity.payout_requires_sponsor_action is True
-        or opportunity.evidence.get("reward_outlier")
+        opportunity.evidence.get("reward_outlier")
         or opportunity.evidence.get("payment_testnet")
         or any(opportunity.evidence.get(key) for key in (
             "algora_evidence_stale", "opire_evidence_stale",

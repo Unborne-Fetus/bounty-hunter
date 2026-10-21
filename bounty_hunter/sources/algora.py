@@ -61,6 +61,70 @@ class _BountyRowParser(HTMLParser):
             self.current["issue_text"].append(text)
 
 
+class _BountyCardParser(HTMLParser):
+    """Read current public cards without pairing amounts across siblings.
+
+    A card must contain Algora's issue-link marker and its own dollar amount.
+    Emit the smallest enclosing div, then suppress its ancestors. Table rows
+    are handled separately so responsive layouts cannot double-count rewards.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.rows = []
+        self.frames = []
+        self.table_depth = 0
+        self.in_issue_link = False
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == "table":
+            self.table_depth += 1
+        if self.table_depth:
+            return
+        if tag == "div":
+            self.frames.append({"text": [], "issue_text": [], "links": set(),
+                                "emitted": False,
+                                "card": "min-w-0" in attributes.get("class", "").split(),
+                                "source_id": attributes.get("phx-value-id")})
+        if tag == "a":
+            href = attributes.get("href", "")
+            self.in_issue_link = (
+                "group/issue" in attributes.get("class", "").split()
+                and bool(ISSUE_RE.fullmatch(href))
+            )
+            if self.in_issue_link:
+                for frame in self.frames:
+                    frame["links"].add(href)
+
+    def handle_endtag(self, tag):
+        if tag == "table":
+            self.table_depth = max(0, self.table_depth - 1)
+            return
+        if self.table_depth:
+            return
+        if tag == "a":
+            self.in_issue_link = False
+        if tag == "div" and self.frames:
+            frame = self.frames.pop()
+            if (frame["card"] and not frame["emitted"] and len(frame["links"]) == 1
+                    and AMOUNT_RE.search(" ".join(frame["text"]))):
+                frame["issue_url"] = next(iter(frame["links"]))
+                self.rows.append(frame)
+                for parent in self.frames:
+                    parent["emitted"] = True
+
+    def handle_data(self, data):
+        if self.table_depth:
+            return
+        text = " ".join(data.split())
+        if not text:
+            return
+        for frame in self.frames:
+            frame["text"].append(text)
+            if self.in_issue_link:
+                frame["issue_text"].append(text)
+
+
 def fetch_org(org: str, timeout_seconds: int = 20) -> str:
     request = Request(
         ORG_URL.format(org=org),
@@ -176,8 +240,10 @@ def normalize_html(
 ) -> List[Opportunity]:
     parser = _BountyRowParser()
     parser.feed(html)
+    cards = _BountyCardParser()
+    cards.feed(html)
     opportunities: List[Opportunity] = []
-    for index, row in enumerate(parser.rows):
+    for index, row in enumerate(parser.rows + cards.rows):
         text = " ".join(row["text"])
         amount_match = AMOUNT_RE.search(text)
         issue_match = ISSUE_RE.match(str(row["issue_url"]))

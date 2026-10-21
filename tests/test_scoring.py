@@ -76,13 +76,20 @@ class ScoringTests(unittest.TestCase):
                 self.assertEqual(score.payout_probability, 0)
 
     def test_missing_guidance_or_heuristic_clarity_needs_review(self):
-        for fields in ({"contribution_guide_found": False},
-                       {"acceptance_criteria_clear": False},
+        for fields in ({"acceptance_criteria_clear": False},
                        {"evidence": {"opire_evidence_stale": True}}):
             with self.subTest(fields=fields):
                 score = score_opportunity(strong_opportunity(**fields))
                 self.assertFalse(score.eligible)
                 self.assertEqual(score.decision, "needs_verification")
+
+    def test_small_repository_and_missing_guide_are_review_warnings(self):
+        score = score_opportunity(strong_opportunity(
+            repository_stars=2, contribution_guide_found=False))
+        self.assertTrue(score.eligible)
+        self.assertEqual(score.decision, "approve_for_human_review")
+        self.assertTrue(any("contribution guidance" in w for w in score.warnings))
+        self.assertIn("repository is below the initial community-adoption threshold", score.warnings)
 
     def test_historical_calibration_changes_expected_value(self):
         opportunity = strong_opportunity()
@@ -239,7 +246,8 @@ class ScoringTests(unittest.TestCase):
                 repository_stars=2,
                 repository_license=None,
                 contribution_guide_found=False,
-            )
+            ),
+            ScoringConfig(require_established_repository=True, require_contribution_guide=True),
         )
         self.assertFalse(score.eligible)
         self.assertIn(
