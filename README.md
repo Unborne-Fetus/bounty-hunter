@@ -25,14 +25,18 @@ It does **not** automatically accept work, promise payment, or withdraw money.
    or human approval. **Show all bounties** switches back to every result
    without losing any records; **Show actionable only** restores the filter.
    **Find actionable** also refreshes the public Algora board discovery when
-   its saved audit is missing or more than 24 hours old. The search checks
-   GitHub bounty-label hints against actual Algora boards before importing
-   listings; it never treats a GitHub label as payment proof. Discovery is
-   bounded and cached, and a failed provider lookup is reported without
-   causing the entire scan to fail. **Scan now** remains the regular scan.
-   When no matches pass, the results pane and **Why 0 matches?** summarize
-   the actual primary rejection reasons, marketplace counts, and whether
-   Algora or BountyPay were missing, disabled, or failing.
+   its saved audit is missing, older than 24 hours, **or contains zero
+   verified boards**. Discovery checks GitHub bounty-label hints and a small
+   set of known public Algora board hints against *fresh live board rows*
+   before importing any listings. Hints are never treated as payment proof.
+   A GitHub search outage does not prevent checking the public board hints;
+   a failed or empty board search is reflected in source diagnostics rather
+   than silently accepted as useful cached discovery. Discovery is bounded.
+   **Scan now** remains the regular scan. When no matches pass,
+   **Why 0 matches?** summarizes the primary rejection reasons, marketplace
+   counts, BountyPay's actual provider error (if any), and whether Algora
+   discovered zero verified boards. An upstream provider outage may still
+   prevent listings being retrieved.
    **Find Algora boards** remains available for a manual discovery refresh.
    A decision of **needs_verification** means GitHub or repository evidence
    is missing, not that the bounty was conclusively rejected. Select that
