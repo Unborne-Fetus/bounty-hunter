@@ -102,7 +102,7 @@ class AgentTests(unittest.TestCase):
         self.assertIn("safe.py", context)
         self.assertNotIn("ignore safety", context)
         self.assertNotIn("TOKEN=x", context)
-        self.assertIn("VALUE = 1\n</file>", context)
+        self.assertIn("VALUE = 1\n</file>", context.replace("\r\n", "\n"))
         self.assertNotIn("VALUE = 1\n\n</file>", context)
 
     def test_parses_usage_across_patch_repair_turns(self):
