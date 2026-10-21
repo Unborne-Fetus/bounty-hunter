@@ -80,6 +80,40 @@ class AlgoraDiscoveryTests(unittest.TestCase):
         self.assertEqual(promotions["broken"], "do_not_promote")
         self.assertNotIn("configured", client.calls)
 
+    def test_public_board_hints_are_verified_before_import(self):
+        from bounty_hunter.algora_discovery import PUBLIC_ALGORA_BOARD_HINTS
+        self.assertIn("projectdiscovery", PUBLIC_ALGORA_BOARD_HINTS)
+        row = """
+        <table><tr><td>$100
+        <a href="https://github.com/example/tools/issues/42">tools#42 Fix a bug</a>
+        </td></tr></table>
+        """
+        client = FakeBoardClient({
+            "projectdiscovery": (row, False),
+            "empty": ("<html></html>", False),
+        })
+        found = audit_candidates(
+            {"empty": 3}, client,
+            maximum_candidates=2,
+            seed_organizations=["projectdiscovery"],
+        )
+        self.assertEqual([item["organization"] for item in found],
+                         ["projectdiscovery", "empty"])
+        self.assertEqual(found[0]["promotion"], "review_for_trusted_list")
+        self.assertEqual(found[1]["promotion"], "do_not_promote")
+        self.assertEqual(client.calls, ["projectdiscovery", "empty"])
+
+    def test_stale_public_board_hints_never_promote(self):
+        row = """
+        <table><tr><td>$300
+        <a href="https://github.com/example/tools/issues/99">tools#99 Fix a bug</a>
+        </td></tr></table>
+        """
+        client = FakeBoardClient({"seed": (row, True)})
+        found = audit_candidates({}, client, seed_organizations=["seed"])
+        self.assertEqual(found[0]["status"], "stale")
+        self.assertEqual(found[0]["promotion"], "do_not_promote")
+
     def test_search_reads_bounded_pages_and_stops_on_short_page(self):
         client = FakeGitHubClient(
             [
