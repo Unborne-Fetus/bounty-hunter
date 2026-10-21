@@ -140,14 +140,18 @@ def run_actionable_scan(settings: dict, progress=None) -> dict:
         progress("Discovering live Algora boards before scanning")
         try:
             audit = run_algora_audit(settings)
+            verified_boards = len(audit.get("review_candidates") or [])
             extra.append({
                 "source": "algora_auto_discovery",
-                "status": "fresh",
+                "status": "fresh" if verified_boards else "no_verified_boards",
                 "candidates": len(audit.get("candidates") or []),
-                "verified_boards": len(audit.get("review_candidates") or []),
+                "verified_boards": verified_boards,
+                "github_search_status": audit.get("github_search_status"),
                 "message": (
-                    "Public GitHub bounty labels and public-board hints are discovery "
-                    "leads only. Only fresh, parseable Algora board listings are scanned."
+                    "Validated public Algora bounty boards with fresh open rows."
+                    if verified_boards else
+                    "No fresh Algora boards with parseable open bounties were found. "
+                    "GitHub labels and public-board hints cannot prove a paid bounty."
                 ),
             })
         except Exception as error:
