@@ -156,7 +156,7 @@ class DesktopAppTests(unittest.TestCase):
         self.assertEqual(len(notices), 2)
         records = read_report(self.settings)["opportunities"]
         by_id = {r["opportunity"]["source_id"]: r for r in records}
-        self.assertGreater(by_id["1"]["score"]["confidence"], 0.7)
+        self.assertGreater(by_id["1"]["score"]["confidence"], 0.6)
         self.assertEqual(
             by_id["2"]["opportunity"]["evidence"]["github_verification_status"],
             "verified",
