@@ -78,8 +78,9 @@ def actionable_diagnostics(records: Iterable[Dict[str, Any]]) -> str:
         return (
             f'{result["actionable"]} of {result["total"]} discovered bounties '
             "passed automated screening.\n"
-            "Review each requirement and marketplace eligibility, then run "
-            "the isolated preflight before attempting any work. "
+            "Review each requirement and marketplace participation rules "
+            "(including age and payout eligibility), then run the "
+            "isolated preflight before attempting any work. "
             "A listing is not a guaranteed payment."
         )
 
@@ -102,7 +103,7 @@ def actionable_diagnostics(records: Iterable[Dict[str, Any]]) -> str:
         ),
         "",
         "GitHub 'verified' means its linked issue was checked; it does not "
-        "verify the payout, scope, tests, or platform eligibility.",
+        "verify the payout, scope, tests, or platform participation and payout eligibility.",
         "Use Show all bounties to inspect rejects and Source diagnostics to "
         "check missing inventories. If the same gates block everything, "
         "review those specific scanner rules rather than marking unsafe "
