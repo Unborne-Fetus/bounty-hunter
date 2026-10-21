@@ -399,7 +399,7 @@ class GithubAuthReuseTests(unittest.TestCase):
 
     def test_reuses_cli_login_without_storing_or_printing_token(self):
         result = type("Completed", (), {
-            "returncode": 0, "stdout": "github_pat_test12345678901234567890\\n",
+            "returncode": 0, "stdout": "github_pat_test12345678901234567890\n",
         })()
         with patch("bounty_hunter.github.shutil.which", return_value="gh"):
             with patch("bounty_hunter.github.subprocess.run", return_value=result) as run:
