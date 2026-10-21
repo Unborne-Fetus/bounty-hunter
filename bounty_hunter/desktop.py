@@ -20,6 +20,7 @@ from .dashboard import Dashboard, BG, PANEL, RAISED, TEXT, MUTED, ACCENT, WARNIN
 from .desktop_dialogs import ReviewDialog, SetupDialog
 from .desktop_settings import load_settings, normalize_settings, save_settings, settings_path, workspace_paths
 from .desktop_service import read_report, run_algora_audit, run_scan, recheck_github_opportunity, recheck_all_github_opportunities
+from .actionable import actionable_indices, actionability_summary, actionable_diagnostics, is_actionable
 from .desktop_workflow import (
     queue_opportunity, review_attempt, approve_attempt, approve_review_bundle,
     perform_step, publish_approved, bundle_preview, package_preview,
@@ -43,6 +44,7 @@ class Workbench(Dashboard):
         self._next_auto_scan = time.monotonic() + 20
         self._selected_row = None
         self._selected_attempt_id = None
+        self._actionable_only = True
         super().__init__()
         self.title("Bounty Hunter — Desktop")
         self.database = str(workspace_paths(self.settings)["db"])
@@ -210,6 +212,23 @@ class Workbench(Dashboard):
         if self.winfo_exists():
             self.after(200, self._poll_jobs)
 
+    def find_actionable(self):
+        # A normal scan still evaluates every enabled marketplace; the
+        # strict filter affects only the visible result list.
+        self._actionable_only = True
+        self.start_scan()
+
+    def toggle_actionable_filter(self):
+        self._actionable_only = not self._actionable_only
+        self.navigate("bounties")
+
+    def show_actionable_diagnostics(self):
+        records = self.scan_report.get("opportunities") or []
+        self._preview_window(
+            "Why no actionable bounties?",
+            actionable_diagnostics(records),
+        )
+
     def start_scan(self):
         settings = dict(self.settings)
         self._next_auto_scan = time.monotonic() + settings["scan_interval_minutes"] * 60
@@ -219,8 +238,10 @@ class Workbench(Dashboard):
 
     def _scan_complete(self, result):
         self._load_report()
+        counts = actionability_summary(self.scan_report.get("opportunities") or [])
         self.message.set(
-            f'Scan #{result["scan_id"]}: {result["count"]} found, {result["eligible"]} eligible'
+            f'Scan #{result["scan_id"]}: {result["count"]} found, '
+            f'{counts["actionable"]} actionable, {counts["pending"]} pending verification'
         )
         self.navigate("bounties")
 
@@ -246,7 +267,8 @@ class Workbench(Dashboard):
     def _bounty_page(self):
         top = tk.Frame(self.content, bg=BG)
         top.pack(fill="x", pady=(5, 12))
-        self._button(top, "Scan now", self.start_scan, True).pack(side="left")
+        self._button(top, "Find actionable", self.find_actionable, True).pack(side="left")
+        self._button(top, "Scan now", self.start_scan).pack(side="left", padx=(10, 0))
         self._button(top, "Recheck all on GitHub", self.recheck_all_github).pack(
             side="left", padx=(10, 0)
         )
@@ -260,14 +282,27 @@ class Workbench(Dashboard):
 
         report = self.scan_report
         all_rows = report.get("opportunities") or []
-        eligible_count = sum(bool(r.get("score", {}).get("eligible")) for r in all_rows)
-        unverified_count = sum(r.get("score", {}).get("decision") == "needs_verification" for r in all_rows)
+        counts = actionability_summary(all_rows)
+        eligible_count = counts["actionable"]
+        unverified_count = counts["pending"]
         generated = str(report.get("generated_at") or "Never")
+        filter_row = tk.Frame(self.content, bg=BG)
+        filter_row.pack(fill="x", pady=(1, 8))
         self._label(
-            self.content,
-            f"{len(all_rows)} discovered  •  {eligible_count} eligible  •  {unverified_count} need verification  •  Last scan: {generated}",
-            10, MUTED
-        ).pack(anchor="w", pady=(2, 9))
+            filter_row,
+            f'{counts["total"]} discovered  •  {eligible_count} actionable  •  '
+            f'{unverified_count} pending verification  •  Last scan: {generated}',
+            10, MUTED,
+        ).pack(side="left")
+        self._button(
+            filter_row,
+            "Show all bounties" if self._actionable_only else "Show actionable only",
+            self.toggle_actionable_filter,
+        ).pack(side="right", padx=(8, 0))
+        if self._actionable_only and counts["total"] and not eligible_count:
+            self._button(
+                filter_row, "Why 0 matches?", self.show_actionable_diagnostics
+            ).pack(side="right", padx=(8, 0))
 
         cols = ("source", "reward", "decision", "github", "title", "value")
         self.scan_tree = ttk.Treeview(
@@ -285,7 +320,12 @@ class Workbench(Dashboard):
         self.scan_tree.tag_configure("eligible", foreground=ACCENT)
         self.scan_tree.tag_configure("rejected", foreground=MUTED)
         self.scan_tree.tag_configure("unverified", foreground=WARNING)
-        for i, record in enumerate(all_rows):
+        visible_indices = (
+            actionable_indices(all_rows)
+            if self._actionable_only else range(len(all_rows))
+        )
+        for i in visible_indices:
+            record = all_rows[i]
             opp = record["opportunity"]
             score = record["score"]
             self.scan_tree.insert(
@@ -327,12 +367,18 @@ class Workbench(Dashboard):
         elif not all_rows:
             detail = ("No opportunities were returned. Open Source diagnostics to check marketplace health.\n"
                       "Use Find Algora boards to discover additional boards, then scan again.")
+        elif not eligible_count and self._actionable_only:
+            detail = actionable_diagnostics(all_rows)
         elif not eligible_count:
             detail = ("No bounties passed the current checks. Select a row to see its reasons.\n"
-                      "Recheck all on GitHub verifies linked issues. Payment terms and other "
+                      "Use Show actionable only for the strict view. Payment terms and other "
                       "confirmed rejections remain separate from missing data.")
         else:
-            detail = "Select a bounty to view eligibility, payout warnings and source evidence."
+            detail = ("Only fully screened, human-review-ready bounties are shown. "
+                      "You must still review platform terms and run preflight before work."
+                      if self._actionable_only else
+                      "Showing all discovered bounties. Select a row to inspect blockers; "
+                      "rejected rows cannot be queued.")
         self._set_detail(detail)
 
         health = report.get("source_health") or []
