@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
-from .github import GitHubClient, enrich_opportunity
+from .github import GitHubClient, enrich_opportunity, parse_issue_url
 from .config import ScoringConfig
 from .history import History
 from .models import Opportunity
@@ -82,7 +82,7 @@ def _discovered_algora_orgs(path: str, maximum_age_hours: float) -> tuple:
 
 
 def _needs_github_enrichment(opportunity: Opportunity) -> bool:
-    if not opportunity.issue_url:
+    if not parse_issue_url(opportunity.issue_url):
         return False
     if opportunity.status.lower() not in {"open", "active", "funded", "published"}:
         return False
@@ -428,17 +428,34 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
             for opportunity in opportunities:
                 if id(opportunity) not in candidate_ids:
                     opportunity.evidence["github_enrichment_skipped"] = True
-                    opportunity.notes.append(
-                        "GitHub enrichment skipped because source-level evidence "
-                        "already makes the opportunity ineligible."
-                    )
+                    if not parse_issue_url(opportunity.issue_url):
+                        opportunity.evidence["github_verification_status"] = "missing_issue_link"
+                        opportunity.notes.append(
+                            "The marketplace did not provide a usable GitHub issue URL. "
+                            "Open its provider listing to check the source link."
+                        )
+                    else:
+                        opportunity.evidence["github_verification_status"] = "source_ineligible"
+                        opportunity.notes.append(
+                            "GitHub enrichment skipped because source-level evidence "
+                            "already makes the opportunity ineligible."
+                        )
             for opportunity in enrichment_candidates:
                 try:
                     enrich_opportunity(opportunity, client)
                 except Exception as error:
+                    opportunity.evidence["github_error"] = "unexpected"
                     opportunity.notes.append(
-                        f"GitHub enrichment failed unexpectedly: {error}"
+                        f"GitHub enrichment failed unexpectedly ({type(error).__name__})."
                     )
+                if opportunity.evidence.get("github_error"):
+                    opportunity.evidence["github_verification_status"] = "api_error"
+                elif opportunity.evidence.get("github_not_found"):
+                    opportunity.evidence["github_verification_status"] = "not_found"
+                elif opportunity.evidence.get("github_enriched_at"):
+                    opportunity.evidence["github_verification_status"] = "verified"
+                else:
+                    opportunity.evidence["github_verification_status"] = "incomplete"
                 if opportunity.evidence.get("github_error"):
                     previous = history.latest_github_enriched_record(
                         opportunity.source, opportunity.source_id
@@ -455,14 +472,29 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
             for item in opportunities
             if item.evidence.get("github_evidence_stale")
         )
+        missing_links = sum(
+            1 for item in opportunities
+            if item.evidence.get("github_verification_status") == "missing_issue_link"
+        )
+        verified = sum(
+            1 for item in opportunities
+            if item.evidence.get("github_verification_status") == "verified"
+        )
+        unverified = sum(
+            1 for item in opportunities
+            if item.public_repository is None or item.issue_open is None
+        )
         source_health.append(
             {
                 "source": "github",
                 "status": (
-                    "partial" if github_errors or github_stale else "fresh"
+                    "partial" if github_errors or github_stale or unverified else "fresh"
                 ),
                 "opportunities": len(opportunities),
                 "attempted": len(enrichment_candidates),
+                "verified": verified,
+                "unverified": unverified,
+                "missing_issue_links": missing_links,
                 "skipped": skipped,
                 "errors": github_errors,
                 "stale_fallbacks": github_stale,
