@@ -66,6 +66,24 @@ class ActionableFilterTests(unittest.TestCase):
         summary = actionability_summary([record])
         self.assertEqual(summary["blockers"], [("no escrow", 1)])
 
+    def test_zero_matches_explains_unavailable_paid_sources(self):
+        rows = [
+            sample("boss", "1", "reject", False, "payout requires sponsor action"),
+            sample("opire", "2", "reject", False, "payout requires sponsor action"),
+        ]
+        health = [
+            {"source": "algora_auto_discovery", "status": "error",
+             "message": "Algora board search failed."},
+            {"source": "bountypay", "status": "fresh", "opportunities": 0},
+            {"source": "boss", "status": "fresh", "opportunities": 1},
+            {"source": "opire", "status": "fresh", "opportunities": 1},
+        ]
+        diagnosis = actionable_diagnostics(rows, health)
+        self.assertIn("algora_auto_discovery: error", diagnosis)
+        self.assertIn("Algora board search failed", diagnosis)
+        self.assertIn("bountypay: fresh", diagnosis)
+        self.assertIn("0 actionable bounties", diagnosis)
+
     def test_no_inventory_is_not_misreported_as_rejection(self):
         self.assertEqual(actionability_summary([])["total"], 0)
         self.assertIn("No marketplace listings were discovered", actionable_diagnostics([]))
