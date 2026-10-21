@@ -36,18 +36,17 @@ def scan_arguments(settings: dict):
     if settings["sources"]["algora"]:
         for organization in settings["algora_organizations"]:
             args.extend(["--algora-org", organization])
-    else:
-        # Ignore any discovery audit when Algora is disabled, and do not
-        # read old cache/report as an enabled discovery source.
-        args.extend(["--algora-discovery-report", str(root / "disabled-algora.json")])
     if settings["boss_payout_country"]:
         args.extend(["--boss-payout-country", settings["boss_payout_country"]])
-    return cli._parser().parse_args(args)
+    parsed = cli._parser().parse_args(args)
+    parsed.no_algora = not settings["sources"]["algora"]
+    return parsed
 
 
-def run_scan(settings: dict) -> dict:
+def run_scan(settings: dict, progress=None) -> dict:
     """Run synchronously; desktop runs it in a worker, never the UI thread."""
     args = scan_arguments(settings)
+    args.progress = progress
     paths = workspace_paths(normalize_settings(settings))
     paths["reports"].mkdir(parents=True, exist_ok=True)
     args.history_db = str(paths["db"])
@@ -138,3 +137,4 @@ def run_algora_audit(settings: dict) -> dict:
     paths["reports"].mkdir(parents=True, exist_ok=True)
     write_report(str(paths["algora_audit"]), report)
     return report
+

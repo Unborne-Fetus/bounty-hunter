@@ -7,8 +7,9 @@ import json
 import re
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from . import __version__
 
-APP_VERSION = "0.2.0"
+APP_VERSION = __version__
 RELEASES_URL = "https://github.com/Unborne-Fetus/bounty-hunter/releases"
 ACTIONS_URL = "https://github.com/Unborne-Fetus/bounty-hunter/actions/workflows/build-windows-dashboard.yml"
 API_URL = "https://api.github.com/repos/Unborne-Fetus/bounty-hunter/releases/latest"
@@ -63,3 +64,4 @@ def check_for_updates(fetcher=None) -> dict:
             if version > current else "You're using the latest published release."
         ),
     }
+

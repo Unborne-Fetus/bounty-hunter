@@ -165,7 +165,9 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
     opportunities: List[Opportunity] = []
     source_health = []
     args.source_health = source_health
+    progress = getattr(args, "progress", None) or (lambda message: None)
     if not args.no_bountypay:
+        progress("Fetching BountyPay inventory")
         client = bountypay.BountyPayClient(
             cache_path=args.bountypay_cache,
             cache_ttl_seconds=int(args.bountypay_cache_ttl_hours * 60 * 60),
@@ -207,6 +209,7 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
             )
             print(f"warning: BountyPay collection failed: {error}", file=sys.stderr)
     if not args.no_boss:
+        progress("Fetching Boss inventory")
         client = boss.BossClient(
             cache_path=args.boss_cache,
             cache_ttl_seconds=int(args.boss_cache_ttl_hours * 60 * 60),
@@ -236,6 +239,7 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
             )
             print(f"warning: Boss collection failed: {error}", file=sys.stderr)
     if not args.no_opire:
+        progress("Fetching Opire inventory")
         client = opire.OpireClient(
             cache_path=args.opire_cache,
             cache_ttl_seconds=int(args.opire_cache_ttl_hours * 60 * 60),
@@ -268,6 +272,7 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
             )
             print(f"warning: Opire collection failed: {error}", file=sys.stderr)
     if not args.no_taskbounty:
+        progress("Fetching TaskBounty inventory and issue details")
         client = taskbounty.TaskBountyClient(
             cache_dir=args.taskbounty_cache_dir,
             cache_ttl_seconds=int(args.taskbounty_cache_ttl_hours * 60 * 60),
@@ -323,9 +328,12 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
         minimum_request_interval_seconds=args.algora_request_interval_seconds,
         maximum_requests_per_run=args.algora_maximum_requests_per_scan,
     )
-    discovered_orgs, discovery_health = _discovered_algora_orgs(
-        args.algora_discovery_report, args.algora_discovery_report_max_age_hours
-    )
+    if getattr(args, "no_algora", False):
+        discovered_orgs, discovery_health = [], {"status": "disabled"}
+    else:
+        discovered_orgs, discovery_health = _discovered_algora_orgs(
+            args.algora_discovery_report, args.algora_discovery_report_max_age_hours
+        )
     configured_lower = {org.lower() for org in args.algora_org}
     discovered_orgs = [
         org for org in discovered_orgs if org.lower() not in configured_lower
@@ -338,9 +346,17 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
         minimum_request_interval_seconds=args.algora_request_interval_seconds,
         maximum_requests_per_run=args.algora_maximum_requests_per_scan,
     )
-    org_clients = [(org, algora_client) for org in args.algora_org]
+    org_clients = [] if getattr(args, "no_algora", False) else [
+        (org, algora_client) for org in args.algora_org
+    ]
     org_clients.extend((org, discovery_client) for org in discovered_orgs)
+    if not org_clients and not getattr(args, "no_algora", False):
+        source_health.append({
+            "source": "algora", "status": "not_configured", "opportunities": 0,
+            "message": "Use Find Algora boards or add organizations in Setup.",
+        })
     for org, board_client in org_clients:
+        progress(f"Fetching Algora board: {org}")
         try:
             html, stale = board_client.fetch(org, args.timeout)
             org_opportunities = algora.normalize_html(
@@ -388,6 +404,7 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
             }
         )
     if not args.no_github_enrichment:
+        progress("Verifying repositories and open issues with GitHub")
         client = GitHubClient(
             token=os.environ.get(args.github_token_env),
             timeout_seconds=args.timeout,
@@ -678,3 +695,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

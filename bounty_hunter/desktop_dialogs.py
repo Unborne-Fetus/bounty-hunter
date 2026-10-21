@@ -30,6 +30,7 @@ class SetupDialog(tk.Toplevel):
         self.token_env = tk.StringVar(value=settings["github_token_env"])
         self.auto_scan = tk.BooleanVar(value=settings["auto_scan"])
         self.interval = tk.StringVar(value=str(settings["scan_interval_minutes"]))
+        self.timeout = tk.StringVar(value=str(settings["timeout_seconds"]))
         self._build()
         self.grab_set()
         self.focus_force()
@@ -96,6 +97,8 @@ class SetupDialog(tk.Toplevel):
         ).pack(anchor="w", pady=(0, 12))
         self._label(outer, "GITHUB TOKEN ENVIRONMENT VARIABLE (not the token)", 10, MUTED, True).pack(anchor="w")
         self._entry(outer, self.token_env)
+        self._label(outer, "REQUEST TIMEOUT (5–120 seconds)", 10, MUTED, True).pack(anchor="w")
+        self._entry(outer, self.timeout, width=12)
         self._label(
             outer, "Public GitHub scanning can work without a token; requests may be rate-limited.",
             9, MUTED
@@ -167,6 +170,7 @@ class SetupDialog(tk.Toplevel):
                 "github_token_env": self.token_env.get(),
                 "auto_scan": self.auto_scan.get(),
                 "scan_interval_minutes": self.interval.get(),
+                "timeout_seconds": self.timeout.get(),
             })
             if callable(self.on_save):
                 self.on_save(values)
@@ -268,3 +272,4 @@ class ReviewDialog(tk.Toplevel):
             return
         self.grab_release()
         self.destroy()
+

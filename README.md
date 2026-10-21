@@ -1,6 +1,6 @@
 # Bounty Hunter
 
-## All-in-one Windows desktop (v0.2.0)
+## All-in-one Windows desktop (v0.2.1)
 
 **The main Windows app now combines bounty scanning, supervised coding work,
 settings, earnings, and payout links.** No terminal is needed for regular use.
@@ -41,6 +41,24 @@ Codex CLI; public PR publication also needs authenticated GitHub CLI (`gh`).
 The setup wizard indicates which commands are discoverable, but cannot
 automatically authenticate accounts or guarantee that an external provider
 accepts your work. Some platforms require identity/age/country eligibility.
+
+Under **Settings / updates → Check tools and logins**, run bounded checks for
+Git, Codex, Node/npm, GitHub CLI login, and Docker/Podman daemon readiness.
+Node/npm are optional for scanning. These checks never display or save login
+output or tokens. The request timeout is editable in Setup and is preserved
+when other settings change. Your selected GitHub token environment variable
+also applies to fresh preflight and patch-generation checks.
+
+Scans show the current marketplace or GitHub verification stage. A provider
+outage appears in **Source diagnostics** while the remaining sources continue;
+zero eligible results include guidance and each row's rejection reasons.
+Algora is completely skipped when disabled. With Algora enabled but no boards,
+use **Find Algora boards**, then scan again. Coding buttons follow the selected
+attempt's stage and available artifacts. A stopped container runtime leaves
+approved work available for retry after starting Docker/Podman.
+
+Windows builds test the GUI from source and launch the packaged EXE in a
+temporary workspace using `--smoke-test` before uploading installer artifacts.
 
 **Updates:** Under Settings, click **Check for Windows app updates**. The app
 checks only the official GitHub Releases source and, with confirmation, opens
@@ -657,3 +675,4 @@ identity, and payment requirements with the provider.
 A Windows build runs on each relevant `main` commit and can also be launched
 manually from GitHub Actions. Windows builds and accounting tests run in
 GitHub Actions; this GUI has not been interactively user-tested on your PC.
+

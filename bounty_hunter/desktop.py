@@ -18,7 +18,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from .dashboard import Dashboard, BG, PANEL, RAISED, TEXT, MUTED, ACCENT, WARNING, FONT, _money
 from .desktop_dialogs import ReviewDialog, SetupDialog
-from .desktop_settings import load_settings, save_settings, settings_path, workspace_paths
+from .desktop_settings import load_settings, normalize_settings, save_settings, settings_path, workspace_paths
 from .desktop_service import read_report, run_algora_audit, run_scan
 from .desktop_workflow import (
     queue_opportunity, review_attempt, approve_attempt, approve_review_bundle,
@@ -26,11 +26,17 @@ from .desktop_workflow import (
 )
 from .earnings import load_dashboard, provider_info
 from .history import History
+from .desktop_readiness import allowed_actions, check_readiness
 
 
 class Workbench(Dashboard):
-    def __init__(self):
-        self.settings = load_settings()
+    def __init__(self, settings=None):
+        self._settings_error = None
+        try:
+            self.settings = normalize_settings(settings) if settings is not None else load_settings()
+        except (ValueError, OSError) as error:
+            self._settings_error = str(error)
+            self.settings = normalize_settings({})
         self.scan_report = {"opportunities": [], "source_health": []}
         self._jobs = queue.Queue()
         self._busy = False
@@ -87,12 +93,23 @@ class Workbench(Dashboard):
             self._settings_page()
 
     def _startup(self):
-        if not settings_path().exists():
+        if self._settings_error:
+            messagebox.showwarning(
+                "Settings need repair",
+                "Saved settings could not be loaded. Your history is untouched. "
+                "Choose your existing workspace in Setup.\n\n" + self._settings_error,
+                parent=self,
+            )
+            self.open_setup(first_run=True)
+        elif not settings_path().exists():
             self.open_setup(first_run=True)
         else:
             self._load_report()
 
     def choose_database(self):
+        if self._busy:
+            messagebox.showinfo("Job running", "Wait for the current job before changing workspaces.", parent=self)
+            return
         name = filedialog.askopenfilename(
             parent=self, title="Select an existing Bounty Hunter history database",
             filetypes=[("SQLite history", "*.db"), ("All files", "*.*")]
@@ -112,6 +129,9 @@ class Workbench(Dashboard):
             messagebox.showerror("Cannot open database", str(error), parent=self)
 
     def open_setup(self, first_run=False):
+        if self._busy:
+            messagebox.showinfo("Job running", "Wait for the current job before changing settings.", parent=self)
+            return
         SetupDialog(
             self, self.settings, first_run=first_run, on_save=self._save_settings
         )
@@ -119,6 +139,7 @@ class Workbench(Dashboard):
     def _save_settings(self, values):
         values = save_settings(values)
         self.settings = values
+        self._selected_attempt_id = None
         self.database = str(workspace_paths(values)["db"])
         self._next_auto_scan = time.monotonic() + values["scan_interval_minutes"] * 60
         self._load_report()
@@ -131,6 +152,12 @@ class Workbench(Dashboard):
                     and time.monotonic() >= self._next_auto_scan):
                 self.start_scan()
             self.after(60000, self._auto_tick)
+
+    def _periodic_refresh(self):
+        if self.winfo_exists():
+            if not self._busy:
+                self.refresh()
+            self.after(60000, self._periodic_refresh)
 
     def _load_report(self):
         try:
@@ -147,6 +174,8 @@ class Workbench(Dashboard):
             return
         self._busy = True
         self.message.set(description + " — running")
+        if self.page == "work":
+            self._update_work_detail((self.data or {}).get("attempts") or [])
         def task():
             try:
                 result = work()
@@ -159,16 +188,21 @@ class Workbench(Dashboard):
         try:
             while True:
                 status, label, value, callback = self._jobs.get_nowait()
+                if status == "progress":
+                    self.message.set(str(value))
+                    continue
                 self._busy = False
                 if status == "error":
                     self.message.set(label + " failed: " + str(value)[:180])
                     messagebox.showerror(label + " failed", str(value), parent=self)
+                    self.refresh()
+                    self.message.set(label + " failed: " + str(value)[:180])
                 else:
-                    self.message.set(label + " completed")
                     try:
+                        self.refresh()
+                        self.message.set(label + " completed")
                         if callback is not None:
                             callback(value)
-                        self.refresh()
                     except Exception as error:
                         messagebox.showerror("Display update failed", str(error), parent=self)
         except queue.Empty:
@@ -179,7 +213,8 @@ class Workbench(Dashboard):
     def start_scan(self):
         settings = dict(self.settings)
         self._next_auto_scan = time.monotonic() + settings["scan_interval_minutes"] * 60
-        self._run_async("Scanning bounty marketplaces", lambda: run_scan(settings),
+        progress = lambda message: self._jobs.put(("progress", "", message, None))
+        self._run_async("Scanning bounty marketplaces", lambda: run_scan(settings, progress=progress),
                         on_success=self._scan_complete)
 
     def _scan_complete(self, result):
@@ -272,8 +307,17 @@ class Workbench(Dashboard):
             wrap="word", height=7, padx=12, pady=9
         )
         self.detail.pack(fill="both", expand=True)
-        self._set_detail("Select a bounty above to view eligibility, payout warnings and source evidence.\n"
-                         "A rejected bounty cannot be approved for AI execution.")
+        if not report.get("generated_at"):
+            detail = "Click Scan now to fetch live opportunities from your enabled marketplaces."
+        elif not all_rows:
+            detail = ("No opportunities were returned. Open Source diagnostics to check marketplace health.\n"
+                      "Use Find Algora boards to discover additional boards, then scan again.")
+        elif not eligible_count:
+            detail = ("No bounties passed the current checks. Select a row to see its rejection reasons.\n"
+                      "Open Source diagnostics for provider errors or incomplete inventories.")
+        else:
+            detail = "Select a bounty to view eligibility, payout warnings and source evidence."
+        self._set_detail(detail)
 
         health = report.get("source_health") or []
         summary = "  |  ".join(
@@ -414,8 +458,13 @@ class Workbench(Dashboard):
             ("Prepare PR", lambda: self.run_step("prepare")),
             ("Publish PR", self.publish_selected),
         ]
+        action_keys = ("inspect", "approve", "preflight", "patch", "verify",
+                       "bundle", "approve_bundle", "prepare", "publish")
+        self.work_buttons = {}
         for i, (name, callback) in enumerate(buttons):
-            self._button(action_row, name, callback, accent=name in {"Approve attempt", "Approve bundle"}).grid(
+            button = self._button(action_row, name, callback, accent=name in {"Approve attempt", "Approve bundle"})
+            self.work_buttons[action_keys[i]] = button
+            button.grid(
                 row=i // 3, column=i % 3, padx=(0, 8), pady=(0, 8), sticky="ew"
             )
         for col in range(3):
@@ -450,16 +499,26 @@ class Workbench(Dashboard):
         )
         if not item:
             detail = "Select a queued bounty. All workflow steps are unavailable until approval."
+            enabled = set()
         else:
+            history = History(str(workspace_paths(self.settings)["db"]))
+            try:
+                has_patch = bool(history.latest_artifact(item["id"], "agent_patch"))
+                has_package = bool(history.latest_artifact(item["id"], "submission_package"))
+            finally:
+                history.close()
+            enabled = allowed_actions(item["status"], has_patch=has_patch,
+                                      has_package=has_package)
             detail = (
                 f'Attempt #{item["id"]}: {item["title"]}\n'
                 f'Status: {item["status"]}   |   Provider: {item["source"]}\n'
                 f'Recorded payout: {_money(item["recorded_usd"])}   |   '
                 f'Logged hours: {item["hours"]:.2f}\n'
                 f'Pull request: {item.get("pr_url") or "not submitted"}\n'
-                "Buttons enforce the existing safety state machine; not every action "
-                "is available at every stage."
+                "Available actions: " + ", ".join(sorted(enabled)).replace("_", " ")
             )
+        for key, button in getattr(self, "work_buttons", {}).items():
+            button.configure(state="normal" if key in enabled and not self._busy else "disabled")
         self.work_detail.configure(state="normal")
         self.work_detail.delete("1.0", "end")
         self.work_detail.insert("1.0", detail)
@@ -719,6 +778,9 @@ class Workbench(Dashboard):
             10, MUTED, wraplength=780, justify="left"
         ).pack(anchor="w", pady=(20, 18))
         self._button(
+            self.content, "Check tools and logins", self.check_tools, True
+        ).pack(anchor="w", pady=(0, 12))
+        self._button(
             self.content, "Check for Windows app updates", self.check_updates
         ).pack(anchor="w")
         self._label(
@@ -726,6 +788,18 @@ class Workbench(Dashboard):
             "Verified updates open GitHub for review. Bounty Hunter never silently replaces its executable.",
             9, MUTED
         ).pack(anchor="w", pady=(10, 0))
+
+    def check_tools(self):
+        settings = dict(self.settings)
+        self._run_async(
+            "Checking local tools and GitHub login", lambda: check_readiness(settings),
+            on_success=lambda checks: self._preview_window(
+                "Local readiness — scanning needs none of the optional coding tools",
+                "\n\n".join(f'{row["name"]}: {row["status"]}\n{row["message"]}' for row in checks)
+                + "\n\nCodex authorization is checked when you generate a patch.\n"
+                "Marketplace eligibility and payments must be configured with each provider.",
+            ),
+        )
 
     def check_updates(self):
         from .desktop_updates import check_for_updates
@@ -746,9 +820,27 @@ class Workbench(Dashboard):
 
 
 def main():
+    if sys.argv[1:] == ["--smoke-test"]:
+        # Exercise the packaged GUI and lazy imports without marketplace calls,
+        # user settings changes or an interactive setup dialog.
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            settings = normalize_settings({"workspace": folder})
+            history = History(str(workspace_paths(settings)["db"]))
+            history.close()
+            app = Workbench(settings=settings)
+            try:
+                app.withdraw()
+                for page in ("bounties", "work", "overview", "payouts", "activity", "settings"):
+                    app.navigate(page)
+                    app.update_idletasks()
+            finally:
+                app.destroy()
+        return
     app = Workbench()
     app.mainloop()
 
 
 if __name__ == "__main__":
     main()
+

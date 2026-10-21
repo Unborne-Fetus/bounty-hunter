@@ -3,7 +3,7 @@
 !define APPNAME "Bounty Hunter"
 !define APPEXE "BountyHunter.exe"
 !define COMPANY "Bounty Hunter"
-!define APPVERSION "0.2.0"
+!define APPVERSION "0.2.1"
 
 Name "${APPNAME}"
 OutFile "..\dist\BountyHunter-Setup.exe"
@@ -51,3 +51,4 @@ Section "Uninstall"
     DeleteRegKey HKCU "Software\BountyHunter"
     ; Intentionally preserve user earnings databases and settings in AppData.
 SectionEnd
+

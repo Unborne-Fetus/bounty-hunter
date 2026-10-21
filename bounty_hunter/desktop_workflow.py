@@ -4,6 +4,7 @@ Every operation uses the existing History safety state machine, immutable
 review hashes and public publication confirmation. No approval is automatic.
 """
 import json
+import os
 from pathlib import Path
 
 from .desktop_settings import normalize_settings, workspace_paths
@@ -79,20 +80,38 @@ def approve_review_bundle(settings, attempt_id: int, bundle_sha256: str, note: s
 def perform_step(settings, attempt_id: int, step: str):
     """May block for many minutes. Must run off the GUI thread."""
     from .preflight import run_preflight
+    from .preflight import validate_preflight_opportunity
+    from .github import GitHubClient
     from .attempt import generate_patch, verify_patch
     from .submission import prepare_submission
-    paths = workspace_paths(normalize_settings(settings))
+    settings = normalize_settings(settings)
+    paths = workspace_paths(settings)
+    client = GitHubClient(
+        token=os.environ.get(settings["github_token_env"]),
+        timeout_seconds=settings["timeout_seconds"],
+        cache_path=str(paths["root"] / "data" / "github-cache.json"),
+        cache_ttl_seconds=0,
+    )
     history = History(str(paths["db"]))
     try:
         if step == "preflight":
+            # A missing/stopped runtime is a setup issue, not a failed bounty.
+            from .isolation import IsolatedRunner
+            runner = IsolatedRunner(history)
+            runner.require_available()
             return run_preflight(
                 history, attempt_id,
                 workspace_root=str(paths["attempts"]),
                 report_root=str(paths["attempt_reports"]),
+                fresh_validator=lambda record: validate_preflight_opportunity(
+                    record, github_client=client
+                ),
+                runner=runner,
             )
         if step == "patch":
             return generate_patch(
-                history, attempt_id, report_root=str(paths["attempt_reports"])
+                history, attempt_id, report_root=str(paths["attempt_reports"]),
+                github_client=client,
             )
         if step == "verify":
             return verify_patch(
@@ -170,3 +189,4 @@ def package_preview(settings, attempt_id: int) -> dict:
         }
     finally:
         history.close()
+
