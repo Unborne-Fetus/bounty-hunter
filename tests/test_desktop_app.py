@@ -188,7 +188,7 @@ class DesktopAppTests(unittest.TestCase):
                 "eligible": True, "decision": "approve_for_human_review",
             }}],
         }), encoding="utf-8")
-        client = type("FakeClient", (), {"requests_made": 45, "rate_limited_until": None})()
+        client = type("FakeClient", (), {"requests_made": 200, "rate_limited_until": None})()
         with patch("bounty_hunter.github.GitHubClient", return_value=client):
             with patch("bounty_hunter.github.enrich_opportunity") as enrich:
                 result = recheck_all_github_opportunities(self.settings)
