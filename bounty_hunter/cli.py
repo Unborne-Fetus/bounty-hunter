@@ -82,39 +82,20 @@ def _discovered_algora_orgs(path: str, maximum_age_hours: float) -> tuple:
 
 
 def _needs_github_enrichment(opportunity: Opportunity) -> bool:
-    if not parse_issue_url(opportunity.issue_url):
-        return False
-    if opportunity.status.lower() not in {"open", "active", "funded", "published"}:
-        return False
-    if opportunity.deadline_at and opportunity.deadline_at <= datetime.now(
-        timezone.utc
-    ):
-        return False
-    if opportunity.bounty_usd < 50:
-        return False
-    if opportunity.active_attempts is not None and opportunity.active_attempts > 2:
-        return False
-    if opportunity.evidence.get("reward_outlier"):
-        return False
-    if opportunity.payout_requires_sponsor_action is True:
-        return False
-    if any(
-        opportunity.evidence.get(key)
-        for key in (
-            "algora_evidence_stale",
-            "opire_evidence_stale",
-            "taskbounty_evidence_stale",
-            "taskbounty_detail_stale",
-            "boss_evidence_stale",
-            "bountypay_evidence_stale",
-            "payment_testnet",
-        )
-    ):
-        return False
-    return True
+    """Verify linked open issues even if *another* policy blocks a payout.
+
+    Previously the source-level payout gate prevented GitHub verification
+    entirely for Boss and Opire, producing misleadingly low evidence
+    coverage. Enrichment never overrides separate payout restrictions.
+    """
+    return bool(
+        parse_issue_url(opportunity.issue_url)
+        and opportunity.status.lower() in {"open", "active", "funded", "published"}
+    )
 
 
 def _github_priority(opportunity: Opportunity):
+    """Use the limited API budget on actionable listings before risky ones."""
     preferred_reward = 50 <= opportunity.bounty_usd <= 500
     known_uncontested = opportunity.active_attempts == 0
     low_competition = opportunity.active_attempts in (None, 0, 1, 2)
@@ -122,7 +103,18 @@ def _github_priority(opportunity: Opportunity):
         term in opportunity.title.lower()
         for term in ("bug", "fix", "error", "test", "panic", "regression")
     )
+    source_blocked = (
+        opportunity.payout_requires_sponsor_action is True
+        or opportunity.evidence.get("reward_outlier")
+        or opportunity.evidence.get("payment_testnet")
+        or any(opportunity.evidence.get(key) for key in (
+            "algora_evidence_stale", "opire_evidence_stale",
+            "taskbounty_evidence_stale", "taskbounty_detail_stale",
+            "boss_evidence_stale", "bountypay_evidence_stale",
+        ))
+    )
     return (
+        not source_blocked,
         preferred_reward,
         known_uncontested,
         low_competition,
@@ -441,6 +433,15 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
                             "already makes the opportunity ineligible."
                         )
             for opportunity in enrichment_candidates:
+                if client.maximum_requests_per_run is not None and (
+                    client.requests_made >= client.maximum_requests_per_run
+                ):
+                    opportunity.evidence["github_verification_status"] = "request_budget"
+                    opportunity.notes.append(
+                        "GitHub request budget reached before this issue could be checked. "
+                        "Use Recheck all on the saved results or configure a GitHub token."
+                    )
+                    continue
                 try:
                     enrich_opportunity(opportunity, client)
                 except Exception as error:
@@ -484,6 +485,10 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
             1 for item in opportunities
             if item.public_repository is None or item.issue_open is None
         )
+        deferred = sum(
+            1 for item in opportunities
+            if item.evidence.get("github_verification_status") == "request_budget"
+        )
         source_health.append(
             {
                 "source": "github",
@@ -495,6 +500,7 @@ def _collect(args: argparse.Namespace) -> List[Opportunity]:
                 "verified": verified,
                 "unverified": unverified,
                 "missing_issue_links": missing_links,
+                "deferred_request_budget": deferred,
                 "skipped": skipped,
                 "errors": github_errors,
                 "stale_fallbacks": github_stale,
