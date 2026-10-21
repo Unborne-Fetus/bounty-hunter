@@ -65,7 +65,9 @@ def actionability_summary(records: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def actionable_diagnostics(records: Iterable[Dict[str, Any]]) -> str:
+def actionable_diagnostics(
+    records: Iterable[Dict[str, Any]], source_health=None
+) -> str:
     """User-facing explanation for an empty filter and next debugging step."""
     result = actionability_summary(records)
     if not result["total"]:
@@ -101,6 +103,27 @@ def actionable_diagnostics(records: Iterable[Dict[str, Any]]) -> str:
         "Listings by source: " + ", ".join(
             f"{source} {count}" for source, count in result["sources"]
         ),
+    ])
+    if source_health:
+        source_names = {"algora", "algora_auto_discovery", "algora_discovery_report",
+                        "bountypay", "boss", "opire", "taskbounty"}
+        lines.extend(["", "Bounty discovery health:"])
+        for health in source_health:
+            name = health.get("source")
+            if name not in source_names:
+                continue
+            status = str(health.get("status") or "unknown")
+            if name == "algora" and health.get("organization"):
+                name += "/" + str(health["organization"])
+            detail = str(health.get("message") or "")
+            if health.get("verified_boards") is not None:
+                detail += f' Verified public boards: {health["verified_boards"]}.'
+            if health.get("error") and not detail:
+                detail = "Provider request failed; open Source diagnostics."
+            lines.append(
+                f"  • {name}: {status}" + (f" — {detail.strip()}" if detail else "")
+            )
+    lines.extend([
         "",
         "GitHub 'verified' means its linked issue was checked; it does not "
         "verify the payout, scope, tests, or platform participation and payout eligibility.",
